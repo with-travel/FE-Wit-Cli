@@ -1,20 +1,49 @@
-import { authNavigations } from '@/constants/navigations';
-import { AuthStackParamList } from '@/navigations/stack/AuthStackNavigator';
+import ProgressStepBar from '@/components/auth/ProgressStepBar';
+import { useAttachStep } from '@/components/providers/SignupProgressProvider';
+import { authFlowNavigations, authNavigations } from '@/constants/navigations';
+import {
+  AuthStackParamList,
+  SignupFlowStackParamList,
+} from '@/navigations/stack/AuthStackNavigator';
 import { StackScreenProps } from '@react-navigation/stack';
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type AuthServerSignupAdditionalInfoScreenProps = StackScreenProps<
-  AuthStackParamList,
-  typeof authNavigations.AUTH_SERVER_SIGNUP_ADDITIONAL_INFO
+  SignupFlowStackParamList,
+  typeof authFlowNavigations.AUTH_SERVER_SIGNUP_ADDITIONAL_INFO
 >;
 
 function AuthServerSignupAdditionalInfoScreen({
   navigation,
 }: AuthServerSignupAdditionalInfoScreenProps) {
-  return <View></View>;
+  useAttachStep(2); // ✅
+  return (
+    <View style={styles.container}>
+      <View style={{ paddingHorizontal: 20, paddingTop: 8, marginBottom: 32 }}>
+        <ProgressStepBar height={8} />
+      </View>
+      <Pressable onPress={() => navigation.goBack()}>
+        <Text>이전</Text>
+      </Pressable>
+      <Pressable
+        onPress={() =>
+          navigation.push(
+            authFlowNavigations.AUTH_SERVER_SIGNUP_PHONE_AUTHORIZATION,
+          )
+        }
+      >
+        <Text>다음2</Text>
+      </Pressable>
+    </View>
+  );
 }
 
-const styles = StyleSheet.create({});
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+});
 
 export default AuthServerSignupAdditionalInfoScreen;
