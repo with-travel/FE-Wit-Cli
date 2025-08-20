@@ -1,6 +1,6 @@
 import { StackScreenProps } from '@react-navigation/stack';
 import { AuthStackParamList } from '@/navigations/stack/AuthStackNavigator';
-import { authNavigations } from '@/constants/navigations';
+import { authFlowNavigations, authNavigations } from '@/constants/navigations';
 import LinearGradient from 'react-native-linear-gradient';
 import {
   Dimensions,
@@ -35,7 +35,7 @@ function AuthHomeScreen({ navigation }: AuthScreenProps) {
 
   const handleServerSignup = () => {
     //이메일 회원가입 화면으로 이동
-    navigation.push(authNavigations.AUTH_SERVER_SIGNUP_EMAIL);
+    navigation.navigate(authNavigations.AUTH_SIGNUP_FLOW_STACK);
   };
   return (
     <LinearGradient
