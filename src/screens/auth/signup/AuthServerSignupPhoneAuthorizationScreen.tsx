@@ -30,6 +30,7 @@ function AuthServerSignupPhoneAuthorizationScreen({
   navigation,
 }: AuthServerSignupPhoneAuthorizationScreenProps) {
   const [isSent, setIsSent] = useState(false);
+  const [isVerified, setIsVerified] = useState(false);
   const insets = useSafeAreaInsets();
   useAttachStep(3);
   const {
@@ -39,13 +40,29 @@ function AuthServerSignupPhoneAuthorizationScreen({
     formState: { isValid },
   } = useFormContext();
 
+  const phoneNumber = watch('phoneNumber');
+  const authCode = watch('authCode');
+
   const onSubmit = () => {
     navigation.getParent()?.navigate(authNavigations.AUTH_TRAVEL_FORM_STACK);
   };
 
-  const handlePhoneAuth = () => {
+  // 사용자가 구현할 API 요청 함수 (인증번호 요청)
+  const handleRequestAuthCode = async () => {
+    // TODO: 인증번호 요청 API 호출
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setIsSent(true);
+  };
+
+  // 사용자가 구현할 API 요청 함수 (인증번호 확인)
+  const onVerifyCode = async () => {
+    // TODO: 인증번호 확인 API 호출
+    // 아래는 성공 시의 로직 예시입니다.
+    // const success = await verifyAuthCodeAPI(phoneNumber, authCode);
+    // if (success) {
+    setIsVerified(true);
+    // TODO: "인증되었습니다" 모달 띄우기
+    // }
   };
 
   const formatPhoneNumber = (text: string) => {
@@ -113,6 +130,9 @@ function AuthServerSignupPhoneAuthorizationScreen({
             rules={{ required: true, minLength: 6 }}
           />
         )}
+        {isVerified && (
+          <Text style={styles.verifiedMessage}>인증되었습니다</Text>
+        )}
       </View>
       <View
         style={{
@@ -121,15 +141,20 @@ function AuthServerSignupPhoneAuthorizationScreen({
       >
         <CustomButton
           label={isSent ? '인증번호 확인' : '인증 요청'}
-          onPress={isSent ? () => {} : handlePhoneAuth}
+          onPress={isSent ? onVerifyCode : handleRequestAuthCode}
           style={styles.authButton}
+          inValid={
+            isSent
+              ? authCode?.length !== 6 || isVerified
+              : !validatePhoneNumber(phoneNumber)
+          }
         />
       </View>
       <View style={[styles.buttonCTA, { bottom: insets.bottom + 32 }]}>
         <CustomButton
           label="다음"
           onPress={handleSubmit(onSubmit)}
-          inValid={!isValid}
+          inValid={!isVerified}
         />
       </View>
     </View>
@@ -158,6 +183,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginTop: 4,
     color: colors.PRIMARY_COLOR,
+  },
+  verifiedMessage: {
+    paddingHorizontal: 20,
+    marginTop: 4,
+    color: colors.PRIMARY_COLOR,
+    fontWeight: 'bold',
   },
 });
 
