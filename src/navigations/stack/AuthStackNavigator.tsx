@@ -103,8 +103,8 @@ function TravelFormNavigator() {
           component={AuthTravelFormCheckScreen}
           options={{
             headerShown: true,
-            animation: 'none',
             headerTitle: '여행 설문',
+            animation: 'none',
             headerLeft: () => (
               <Pressable onPress={() => navigation.goBack()}>
                 <Feather
@@ -145,6 +145,10 @@ function AuthStackNavigator() {
       gender: '',
       phoneNumber: '',
       authCode: '',
+      surveys: {
+        answer: [],
+      },
+      introduce: '',
     },
   });
   return (
