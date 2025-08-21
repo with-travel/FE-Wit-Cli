@@ -17,4 +17,16 @@ const travelFormNavigations = {
   AUTH_TRAVEL_FORM_INTRODUCE: 'authTravelFormIntroduce',
 } as const;
 
-export { authNavigations, authFlowNavigations, travelFormNavigations };
+const mainTabNavigations = {
+  HOME: 'home',
+  BUDDY: 'buddy',
+  CHAT: 'chat',
+  PROFILE: 'profile',
+};
+
+export {
+  authNavigations,
+  authFlowNavigations,
+  travelFormNavigations,
+  mainTabNavigations,
+};
