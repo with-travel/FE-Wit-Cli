@@ -1,6 +1,5 @@
 import React from 'react';
 import { Dimensions, StyleSheet, Text, View } from 'react-native';
-import NotchedCard from './NotchedCard';
 import { colors } from '@/constants/colors';
 
 interface Companion {
@@ -42,16 +41,6 @@ function CompanionCard({ companion }: CompanionCardProps) {
           <Text style={styles.dDay}>D - {dDay}</Text>
         </View>
       </View>
-      {/* <NotchedCard
-        width={Dimensions.get('window').width - 40}
-        height={160 - 24}
-        color="#6A89FA"
-      >
-        <View style={styles.cardContent}>
-          <Text style={styles.tripTitle}>{companion.title}</Text>
-          <Text style={styles.dDay}>D-{dDay}</Text>
-        </View>
-      </NotchedCard> */}
     </View>
   );
 }
