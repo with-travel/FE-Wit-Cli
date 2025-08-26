@@ -24,9 +24,14 @@ const mainTabNavigations = {
   PROFILE: 'profile',
 };
 
+const profileNavigations = {
+  PROFILE_HOME: 'profileHome',
+} as const;
+
 export {
   authNavigations,
   authFlowNavigations,
   travelFormNavigations,
   mainTabNavigations,
+  profileNavigations,
 };
