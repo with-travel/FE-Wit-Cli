@@ -27,6 +27,15 @@ jobs:
         run: npm run -s lint
         continue-on-error: true
 
+      # ✅ Xcode 16.1+ 선택 (중요)
+      - name: Select Xcode 16
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.4'
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
