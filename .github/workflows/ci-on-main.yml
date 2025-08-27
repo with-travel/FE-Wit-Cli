@@ -46,6 +46,17 @@ jobs:
           gem install cocoapods -N
           cd ios && pod install --repo-update
 
+      # - name: Build iOS (simulator; no signing)
+      #   env:
+      #     RCT_NO_LAUNCH_PACKAGER: '1'
+      #   run: |
+      #     xcodebuild \
+      #       -workspace ios/Wit.xcworkspace \
+      #       -scheme Wit \
+      #       -configuration Release \
+      #       -sdk iphonesimulator \
+      #       -destination 'platform=iOS Simulator,OS=latest,name=iPhone 15' \
+      #       build
       - name: Build iOS (simulator; no signing)
         env:
           RCT_NO_LAUNCH_PACKAGER: '1'
@@ -55,5 +66,6 @@ jobs:
             -scheme Wit \
             -configuration Release \
             -sdk iphonesimulator \
-            -destination 'platform=iOS Simulator,OS=latest,name=iPhone 15' \
-            build
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build \
+            clean build
