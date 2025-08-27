@@ -1,10 +1,8 @@
 name: 🧪 CI on main (build only)
 
 on:
-  # main으로 머지되면 push 이벤트가 반드시 발생하므로 이게 가장 확실
   push:
     branches: [main]
-  # PR 오픈/업데이트 때도 체크하고 싶다면 아래 유지
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
@@ -19,7 +17,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22 # 너의 로컬과 맞춤 (22 LTS)
           cache: 'npm'
 
       - name: Install JS deps
@@ -27,11 +25,13 @@ jobs:
 
       - name: Lint (optional)
         run: npm run -s lint
+        # 필요 시 다음 줄을 추가해도 됨
+        # continue-on-error: true
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.2.2' # fastlane/cocoapods와 궁합 좋은 버전
+          ruby-version: '3.2.2'
 
       - name: Install CocoaPods
         run: |
@@ -39,11 +39,13 @@ jobs:
           cd ios && pod install --repo-update
 
       - name: Build iOS (simulator; no signing)
+        env:
+          RCT_NO_LAUNCH_PACKAGER: '1'
         run: |
           xcodebuild \
             -workspace ios/Wit.xcworkspace \
             -scheme Wit \
             -configuration Release \
             -sdk iphonesimulator \
-            -destination 'platform=iOS Simulator,name=iPhone 15' \
+            -destination 'platform=iOS Simulator,OS=latest,name=iPhone 15' \
             build
