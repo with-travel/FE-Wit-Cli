@@ -25,8 +25,7 @@ jobs:
 
       - name: Lint (optional)
         run: npm run -s lint
-        # 필요 시 다음 줄을 추가해도 됨
-        # continue-on-error: true
+        continue-on-error: true
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
