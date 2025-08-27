@@ -9,6 +9,7 @@ import MaterialIcons from '@react-native-vector-icons/material-icons';
 import Entypo from '@react-native-vector-icons/entypo';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { colors } from '@/constants/colors';
+import ProfileStackNavigator from '../stack/ProfileStackNavigator';
 
 type MainTabParamList = {
   [mainTabNavigations.HOME]: undefined;
@@ -70,8 +71,8 @@ export default function BottomTabNavigator({ navigation }: any) {
         }}
       />
       <Tab.Screen
-        name="Profile"
-        component={HomeScreen}
+        name={mainTabNavigations.PROFILE}
+        component={ProfileStackNavigator}
         options={{
           tabBarLabel: '내 정보',
           tabBarIcon: ({ color, size }) => (
