@@ -1,0 +1,49 @@
+name: 🧪 CI on main (build only)
+
+on:
+  # main으로 머지되면 push 이벤트가 반드시 발생하므로 이게 가장 확실
+  push:
+    branches: [main]
+  # PR 오픈/업데이트 때도 체크하고 싶다면 아래 유지
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  lint-test-build-ios:
+    runs-on: macos-14
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install JS deps
+        run: npm ci
+
+      - name: Lint (optional)
+        run: npm run -s lint
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2.2' # fastlane/cocoapods와 궁합 좋은 버전
+
+      - name: Install CocoaPods
+        run: |
+          gem install cocoapods -N
+          cd ios && pod install --repo-update
+
+      - name: Build iOS (simulator; no signing)
+        run: |
+          xcodebuild \
+            -workspace ios/Wit.xcworkspace \
+            -scheme Wit \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -destination 'platform=iOS Simulator,name=iPhone 15' \
+            build
