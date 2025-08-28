@@ -67,8 +67,10 @@ jobs:
   prepare-release:
     name: 📦 Prepare Release
     needs: build-test
-    runs-on: ubuntu-latest
+    runs-on: macos-14
     if: github.head_ref == 'main'
+    outputs:
+      new_version: ${{ steps.versioning.outputs.new_version }}
     steps:
       - name: Checkout main branch
         uses: actions/checkout@v4
