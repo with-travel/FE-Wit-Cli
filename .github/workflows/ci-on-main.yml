@@ -1,4 +1,4 @@
-name: 🧪 CI on main (build only)
+name: 🧪 CI on main (build only + automerge)
 
 on:
   push:
@@ -7,17 +7,20 @@ on:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   lint-test-build-ios:
     runs-on: macos-14
     timeout-minutes: 45
-
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22 # 너의 로컬과 맞춤 (22 LTS)
+          node-version: 22
           cache: 'npm'
 
       - name: Install JS deps
@@ -27,7 +30,6 @@ jobs:
         run: npm run -s lint
         continue-on-error: true
 
-      # ✅ Xcode 16.1+ 선택 (중요)
       - name: Select Xcode 16
         uses: maxim-lobanov/setup-xcode@v1
         with:
@@ -46,17 +48,6 @@ jobs:
           gem install cocoapods -N
           cd ios && pod install --repo-update
 
-      # - name: Build iOS (simulator; no signing)
-      #   env:
-      #     RCT_NO_LAUNCH_PACKAGER: '1'
-      #   run: |
-      #     xcodebuild \
-      #       -workspace ios/Wit.xcworkspace \
-      #       -scheme Wit \
-      #       -configuration Release \
-      #       -sdk iphonesimulator \
-      #       -destination 'platform=iOS Simulator,OS=latest,name=iPhone 15' \
-      #       build
       - name: Build iOS (simulator; no signing)
         env:
           RCT_NO_LAUNCH_PACKAGER: '1'
@@ -69,3 +60,29 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build \
             clean build
+
+  automerge:
+    name: 🚀 Auto-merge develop → main (keep develop)
+    needs: [lint-test-build-ios]
+    runs-on: ubuntu-latest
+    if: >
+      ${{
+        github.event_name == 'pull_request' &&
+        github.event.pull_request.base.ref == 'main' &&
+        github.event.pull_request.head.ref == 'develop' &&
+        github.event.pull_request.state != 'closed' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # (선택) 리뷰 필수인 보호 규칙을 쓰면, 자동 승인 켤 수 있음
+      - name: (Optional) Auto-approve PR
+        if: env.AUTO_APPROVE == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr review "${{ github.event.pull_request.html_url }}" --approve
+
+      - name: Merge PR (squash) # ✅ --delete-branch 제거 (develop 유지)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr merge "${{ github.event.pull_request.html_url }}" --squash
