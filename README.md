@@ -14,6 +14,7 @@
 **DOCUMENTATION**
 
 - Expo -> Cli로 변경되었습니다.
+  11
 
 ---
 
