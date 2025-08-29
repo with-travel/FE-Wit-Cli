@@ -56,7 +56,7 @@ jobs:
             -scheme Wit \
             -configuration Release \
             -sdk iphonesimulator \
-            -destination 'generic/platform=iOS Simulator' \
+            -destination 'platform=iOS Simulator,name=iPhone 15' \
             -derivedDataPath build \
             clean build
 
@@ -178,7 +178,7 @@ jobs:
   deploy-testflight:
     name: 🚀 Deploy to TestFlight
     needs: prepare-release
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - name: Checkout release branch
         uses: actions/checkout@v4
@@ -260,6 +260,13 @@ jobs:
           name: release-notes
           path: .
 
+      - name: Read changelog file for TestFlight
+        id: read_changelog
+        run: |
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          cat release_notes.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Upload to TestFlight
         uses: apple-actions/upload-testflight-build@v2
         with:
@@ -267,7 +274,7 @@ jobs:
           api-issuer-id: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           api-key-content: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
           app-path: 'build/ipa/Wit.ipa'
-          changelog: ${{ fromJSON(needs.prepare-release.outputs.release_notes_json) }}
+          changelog: ${{ steps.read_changelog.outputs.changelog }}
 
   # ===============================================================
   # Job 4: Update README
@@ -297,10 +304,10 @@ jobs:
 
       - name: Update README.md
         run: |
-          VERSION_TEXT="v${{ steps.version.outputs.latest_version }} ($TIMESTAMP)"
           TIMESTAMP=$(date +'%Y-%m-%d')
+          VERSION_TEXT="v${{ steps.version.outputs.latest_version }} ($TIMESTAMP)"
           # README에서 버전 라인을 찾아 업데이트 (다양한 형식 지원)
-          sed -i -E "s/^(##\s*(최신|Current|Recent|Latest)?\s*버전\s*:\s*).*/\1${VERSION_TEXT}/i" README.md
+          sed -i -E "s/^(##\\s*(최신|Current|Recent|Latest)?\\s*버전\\s*:\\s*).*/\\1${VERSION_TEXT}/i" README.md
 
       - name: Commit and push README update
         run: |
