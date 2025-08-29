@@ -18,7 +18,7 @@ jobs:
   build-test:
     name: 🧪 Build Test
     if: github.head_ref == 'main'
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - name: Checkout PR code
         uses: actions/checkout@v4
