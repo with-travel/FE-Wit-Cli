@@ -18,7 +18,7 @@ jobs:
   build-test:
     name: 🧪 Build Test
     if: github.head_ref == 'main'
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - name: Checkout PR code
         uses: actions/checkout@v4
@@ -67,8 +67,10 @@ jobs:
   prepare-release:
     name: 📦 Prepare Release
     needs: build-test
-    runs-on: ubuntu-latest
+    runs-on: macos-14
     if: github.head_ref == 'main'
+    outputs:
+      new_version: ${{ steps.versioning.outputs.new_version }}
     steps:
       - name: Checkout main branch
         uses: actions/checkout@v4

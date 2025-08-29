@@ -1,8 +1,6 @@
 name: 🧪 CI on main (build only + automerge)
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
@@ -15,6 +13,9 @@ jobs:
   lint-test-build-ios:
     runs-on: macos-14
     timeout-minutes: 45
+    if: >
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'develop')
     steps:
       - uses: actions/checkout@v4
 
