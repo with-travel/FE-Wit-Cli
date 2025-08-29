@@ -59,9 +59,9 @@ sync_native_versions() {
   if [ -f "$INFO_PLIST" ]; then
     echo "iOS Info.plist 업데이트 중..."
     # macOS 환경 체크
-    if command -v /usr/libexec/PlistBuddy >/dev/null 2>&1; then
-      /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${new_version}" "$INFO_PLIST"
-      /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${build_number}" "$INFO_PLIST"
+    if command -v PlistBuddy >/dev/null 2>&1; then
+      PlistBuddy -c "Set :CFBundleShortVersionString ${new_version}" "$INFO_PLIST"
+      PlistBuddy -c "Set :CFBundleVersion ${build_number}" "$INFO_PLIST"
       echo "✅ iOS 버전 동기화 완료."
     else
       echo "⚠️ 경고: PlistBuddy를 찾을 수 없습니다. macOS 환경이 아닌 것 같습니다."
