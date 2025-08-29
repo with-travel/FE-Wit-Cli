@@ -18,7 +18,7 @@ jobs:
   build-test:
     name: 🧪 Build Test
     if: github.head_ref == 'main'
-    runs-on: macos-15
+    runs-on: macos-14
     steps:
       - name: Checkout PR code
         uses: actions/checkout@v4
@@ -45,7 +45,9 @@ jobs:
           ruby-version: '3.2.2'
 
       - name: Install CocoaPods
-        run: cd ios && pod install --repo-update
+        run: |
+          gem install cocoapods -N
+          cd ios && pod install --repo-update
 
       - name: Build iOS (Simulator)
         env:
@@ -67,7 +69,7 @@ jobs:
   prepare-release:
     name: 📦 Prepare Release
     needs: build-test
-    runs-on: macos-15
+    runs-on: macos-14
     if: github.head_ref == 'main'
     outputs:
       new_version: ${{ steps.versioning.outputs.new_version }}
@@ -178,7 +180,7 @@ jobs:
   deploy-testflight:
     name: 🚀 Deploy to TestFlight
     needs: prepare-release
-    runs-on: macos-15
+    runs-on: macos-14
     steps:
       - name: Checkout release branch
         uses: actions/checkout@v4
@@ -205,7 +207,9 @@ jobs:
           ruby-version: '3.2.2'
 
       - name: Install CocoaPods
-        run: cd ios && pod install --repo-update
+        run: |
+          gem install cocoapods -N
+          cd ios && pod install --repo-update
 
       - name: Import Code-Signing Certificates
         uses: Apple-Actions/import-codesign-certs@v2
