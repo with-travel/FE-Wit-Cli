@@ -67,7 +67,7 @@ jobs:
   prepare-release:
     name: 📦 Prepare Release
     needs: build-test
-    runs-on: macos-14
+    runs-on: macos-15
     if: github.head_ref == 'main'
     outputs:
       new_version: ${{ steps.versioning.outputs.new_version }}
@@ -219,8 +219,10 @@ jobs:
         run: |
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           echo "$PROVISIONING_PROFILE_BASE64" | base64 --decode > profile.mobileprovision
-          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< $(security cms -D -i profile.mobileprovision))
+          PROFILE_UUID=$(PlistBuddy -c 'Print :UUID' /dev/stdin <<< $(security cms -D -i profile.mobileprovision))
+          PROFILE_NAME=$(PlistBuddy -c 'Print :Name' /dev/stdin <<< $(security cms -D -i profile.mobileprovision))
           cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/"$PROFILE_UUID".mobileprovision
+          echo "PROVISIONING_PROFILE_SPECIFIER=$PROFILE_NAME" >> $GITHUB_ENV
 
       - name: Get Version Info
         id: version
@@ -240,7 +242,10 @@ jobs:
             clean archive \
             "OTHER_CODE_SIGN_FLAGS=--keychain-path ${{ runner.temp }}/app-signing.keychain-db" \
             CURRENT_PROJECT_VERSION=${{ steps.version.outputs.build_number }} \
-            MARKETING_VERSION=${{ steps.version.outputs.version_name }}
+            MARKETING_VERSION=${{ steps.version.outputs.version_name }} \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="${{ env.PROVISIONING_PROFILE_SPECIFIER }}"
 
       - name: Export IPA
         run: |
