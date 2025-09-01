@@ -17,6 +17,13 @@
     <key>teamID</key>
     <string>6S8WKQFV7D</string>
     <key>destination</key>
-    <string>upload</string>
+    <string>export</string>
+    <key>provisioningProfiles</key>
+    <dict>
+        <key>com.Juhkang.Wit</key>
+        <string>*[expo] com.Juhkang.Wit AppStore 2025-08-01T10:24:40.381Z</string>
+    </dict>
+    <key>signingCertificate</key>
+    <string>Apple Distribution</string>
 </dict>
 </plist>
