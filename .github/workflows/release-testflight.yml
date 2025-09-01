@@ -352,19 +352,48 @@ jobs:
           echo "  - 버전: ${{ steps.version.outputs.version_name }}"
           echo "  - 빌드 번호: ${{ steps.version.outputs.build_number }}"
 
-          # 동적 exportOptions.plist 생성
+                    # 동적 exportOptions.plist 생성
           echo "📝 동적 Export Options 생성 중..."
           echo "사용할 프로비저닝 프로파일: ${{ env.PROVISIONING_PROFILE_SPECIFIER }}"
 
-          # 기존 exportOptions.plist를 복사하고 수정
+          # 키체인에서 실제 인증서 이름 확인
+          echo "🔍 설치된 인증서 확인 중..."
+          KEYCHAIN_PATH="/Users/runner/Library/Keychains/signing_temp.keychain-db"
+          if [ ! -f "$KEYCHAIN_PATH" ]; then
+            KEYCHAIN_PATH=$(security list-keychains -d user | grep -v "login.keychain" | head -1 | tr -d '"' | xargs)
+          fi
+
+          # 인증서 목록에서 Distribution 인증서 찾기
+          CERT_LIST=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" 2>/dev/null || true)
+          echo "인증서 목록:"
+          echo "$CERT_LIST"
+
+          # Distribution 인증서 이름 추출 (Apple Distribution 또는 iOS Distribution)
+          if echo "$CERT_LIST" | grep -q "Apple Distribution"; then
+            CERT_NAME="Apple Distribution"
+          elif echo "$CERT_LIST" | grep -q "iOS Distribution"; then
+            CERT_NAME="iOS Distribution"  
+          else
+            echo "❌ Distribution 인증서를 찾을 수 없습니다!"
+            echo "사용 가능한 인증서:"
+            echo "$CERT_LIST"
+            exit 1
+          fi
+
+          echo "✅ 사용할 인증서: $CERT_NAME"
+
+          # exportOptions.plist 동적 생성 (기존 파일 복사 후 수정)
+          PROFILE_NAME="${{ env.PROVISIONING_PROFILE_SPECIFIER }}"
+          echo "사용할 프로파일: $PROFILE_NAME"
+
+          # 기존 파일을 복사
           cp ios/exportOptions.plist ios/exportOptions-runtime.plist
 
-          # 프로비저닝 프로파일 이름을 실제 값으로 교체
-          PROFILE_NAME="${{ env.PROVISIONING_PROFILE_SPECIFIER }}"
-          echo "교체할 프로파일 이름: $PROFILE_NAME"
+          # 프로파일 이름 교체
+          sed -i '' "s/PLACEHOLDER_PROFILE_NAME/$PROFILE_NAME/g" ios/exportOptions-runtime.plist
 
-          # macOS에서 sed 사용 (백업 없이 인라인 편집)
-          sed -i '' "s|<string>\*\[expo\] com\.Juhkang\.Wit AppStore.*</string>|<string>$PROFILE_NAME</string>|g" ios/exportOptions-runtime.plist
+          # 인증서 이름 교체 (Apple Distribution을 실제 인증서 이름으로)
+          sed -i '' "s/Apple Distribution/$CERT_NAME/g" ios/exportOptions-runtime.plist
 
           echo "✅ Export Options 생성 완료"
           echo "생성된 Export Options 내용:"
