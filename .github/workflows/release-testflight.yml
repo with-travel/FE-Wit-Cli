@@ -225,23 +225,23 @@ jobs:
           echo "📱 프로비저닝 프로파일 설치 시작..."
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           echo "✅ 프로비저닝 프로파일 디렉토리 생성 완료"
-          
+
           echo "🔍 Base64 프로파일 디코딩 중..."
           echo "$PROVISIONING_PROFILE_BASE64" | base64 --decode > profile.mobileprovision
           echo "✅ 프로파일 디코딩 완료"
-          
+
           echo "📋 프로파일 정보 추출 중..."
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< $(security cms -D -i profile.mobileprovision))
           PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' /dev/stdin <<< $(security cms -D -i profile.mobileprovision))
-          
+
           echo "📋 프로파일 정보:"
           echo "  - UUID: $PROFILE_UUID"
           echo "  - Name: $PROFILE_NAME"
-          
+
           echo "📂 프로파일 설치 중..."
           cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/"$PROFILE_UUID".mobileprovision
           echo "PROVISIONING_PROFILE_SPECIFIER=$PROFILE_NAME" >> $GITHUB_ENV
-          
+
           echo "✅ 프로비저닝 프로파일 설치 완료!"
           echo "🔍 설치된 프로파일 확인:"
           ls -la ~/Library/MobileDevice/Provisioning\ Profiles/
@@ -345,51 +345,26 @@ jobs:
           fi
 
           echo "✅ 아카이브 파일 확인됨"
-          
+
           # 환경 변수 확인
           echo "🔍 현재 환경 변수 확인:"
           echo "  - PROVISIONING_PROFILE_SPECIFIER: ${{ env.PROVISIONING_PROFILE_SPECIFIER }}"
           echo "  - 버전: ${{ steps.version.outputs.version_name }}"
           echo "  - 빌드 번호: ${{ steps.version.outputs.build_number }}"
-          
+
           # 동적 exportOptions.plist 생성
           echo "📝 동적 Export Options 생성 중..."
           echo "사용할 프로비저닝 프로파일: ${{ env.PROVISIONING_PROFILE_SPECIFIER }}"
-          
-          cat > ios/exportOptions-runtime.plist << 'EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>method</key>
-    <string>app-store-connect</string>
-    <key>uploadBitcode</key>
-    <false/>
-    <key>uploadSymbols</key>
-    <true/>
-    <key>compileBitcode</key>
-    <false/>
-    <key>signingStyle</key>
-    <string>manual</string>
-    <key>stripSwiftSymbols</key>
-    <true/>
-    <key>teamID</key>
-    <string>6S8WKQFV7D</string>
-    <key>destination</key>
-    <string>export</string>
-    <key>provisioningProfiles</key>
-    <dict>
-        <key>com.Juhkang.Wit</key>
-        <string>PROVISIONING_PROFILE_PLACEHOLDER</string>
-    </dict>
-    <key>signingCertificate</key>
-    <string>Apple Distribution</string>
-</dict>
-</plist>
-EOF
-          
-          # 프로비저닝 프로파일 이름 교체
-          sed -i "s/PROVISIONING_PROFILE_PLACEHOLDER/${{ env.PROVISIONING_PROFILE_SPECIFIER }}/g" ios/exportOptions-runtime.plist
+
+          # 기존 exportOptions.plist를 복사하고 수정
+          cp ios/exportOptions.plist ios/exportOptions-runtime.plist
+
+          # 프로비저닝 프로파일 이름을 실제 값으로 교체
+          PROFILE_NAME="${{ env.PROVISIONING_PROFILE_SPECIFIER }}"
+          echo "교체할 프로파일 이름: $PROFILE_NAME"
+
+          # macOS에서 sed 사용 (백업 없이 인라인 편집)
+          sed -i '' "s|<string>\*\[expo\] com\.Juhkang\.Wit AppStore.*</string>|<string>$PROFILE_NAME</string>|g" ios/exportOptions-runtime.plist
 
           echo "✅ Export Options 생성 완료"
           echo "생성된 Export Options 내용:"
