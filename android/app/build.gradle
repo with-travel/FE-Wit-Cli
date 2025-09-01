@@ -82,8 +82,8 @@ android {
         applicationId "com.wit"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 185
-        versionName "1.0.24"
+        versionCode 189
+        versionName "1.0.25"
     }
     signingConfigs {
         debug {
