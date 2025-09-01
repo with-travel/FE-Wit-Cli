@@ -236,8 +236,16 @@ jobs:
 
           # CLI 프로젝트용 프로파일인지 확인
           if [[ "$PROFILE_NAME" == *"expo"* ]]; then
-            echo "⚠️ 경고: Expo 프로파일이 감지되었습니다. CLI 프로젝트용 프로파일을 사용해주세요."
+            echo "❌ 에러: Expo 프로파일이 감지되었습니다!"
             echo "현재 프로파일: $PROFILE_NAME"
+            echo ""
+            echo "해결 방법:"
+            echo "1. Apple Developer Console에서 CLI 프로젝트용 Distribution 프로파일 생성"
+            echo "2. 해당 프로파일을 Base64로 인코딩"
+            echo "3. GitHub Secrets의 APPLE_PROVISIONING_PROFILE_BASE64 업데이트"
+            echo ""
+            echo "CLI 프로젝트에는 Expo 프로파일을 사용할 수 없습니다."
+            exit 1
           fi
 
           echo "📂 프로파일 설치 중..."
@@ -395,25 +403,51 @@ jobs:
           export PROFILE_NAME="$PROFILE_NAME"
           export CERT_NAME="$CERT_NAME"
 
-          # 안전한 문자열 교체를 위한 임시 파일 사용
+                              # 안전한 문자열 교체 (줄바꿈 완전 제거)
           echo "프로파일 교체 중..."
-          # 임시 파일에 프로파일 이름 저장
-          echo "$PROFILE_NAME" > /tmp/profile_name.txt
-          echo "$CERT_NAME" > /tmp/cert_name.txt
 
-          # Perl을 사용한 안전한 교체 (특수문자 처리)
-          perl -i -pe 'BEGIN{undef $/;} s/PLACEHOLDER_PROFILE_NAME/`cat \/tmp\/profile_name.txt`/smge' ios/exportOptions-runtime.plist
-          perl -i -pe 'BEGIN{undef $/;} s/Apple Distribution/`cat \/tmp\/cert_name.txt`/smge' ios/exportOptions-runtime.plist
+          # 줄바꿈과 공백 완전 제거
+          CLEAN_PROFILE_NAME=$(echo "$PROFILE_NAME" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+          CLEAN_CERT_NAME=$(echo "$CERT_NAME" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+          echo "정리된 프로파일 이름: [$CLEAN_PROFILE_NAME]"
+          echo "정리된 인증서 이름: [$CLEAN_CERT_NAME]"
+
+          # 임시 파일에 정리된 이름 저장
+          printf '%s' "$CLEAN_PROFILE_NAME" > /tmp/clean_profile.txt
+          printf '%s' "$CLEAN_CERT_NAME" > /tmp/clean_cert.txt
+
+          # sed를 사용한 안전한 교체 (구분자 변경으로 특수문자 처리)
+          sed -i '' "s|PLACEHOLDER_PROFILE_NAME|$(cat /tmp/clean_profile.txt)|g" ios/exportOptions-runtime.plist
+          sed -i '' "s|Apple Distribution|$(cat /tmp/clean_cert.txt)|g" ios/exportOptions-runtime.plist
 
           # 임시 파일 정리
-          rm -f /tmp/profile_name.txt /tmp/cert_name.txt
+          rm -f /tmp/clean_profile.txt /tmp/clean_cert.txt
 
-          echo "✅ 프로파일 교체 완료: $PROFILE_NAME"
-          echo "✅ 인증서 교체 완료: $CERT_NAME"
+          echo "✅ 프로파일 교체 완료: [$CLEAN_PROFILE_NAME]"
+          echo "✅ 인증서 교체 완료: [$CLEAN_CERT_NAME]"
 
           echo "✅ Export Options 생성 완료"
           echo "생성된 Export Options 내용:"
           cat ios/exportOptions-runtime.plist
+
+          echo ""
+          echo "🔍 최종 검증:"
+          # XML에서 실제 값 추출하여 검증
+          PLIST_PROFILE=$(grep -A1 "com.Juhkang.Wit" ios/exportOptions-runtime.plist | grep "<string>" | sed 's/<[^>]*>//g' | tr -d ' \t\n\r')
+          PLIST_CERT=$(grep -A1 "signingCertificate" ios/exportOptions-runtime.plist | grep "<string>" | sed 's/<[^>]*>//g' | tr -d ' \t\n\r')
+
+          echo "추출된 프로파일: [$PLIST_PROFILE]"
+          echo "추출된 인증서: [$PLIST_CERT]"
+
+          # 줄바꿈 문자 확인
+          if echo "$PLIST_PROFILE" | grep -q $'\n'; then
+            echo "❌ 경고: 프로파일 이름에 줄바꿈이 포함되어 있습니다!"
+          fi
+
+          if echo "$PLIST_CERT" | grep -q $'\n'; then
+            echo "❌ 경고: 인증서 이름에 줄바꿈이 포함되어 있습니다!"
+          fi
 
           echo "🚀 xcodebuild -exportArchive 시작..."
           xcodebuild -exportArchive \
