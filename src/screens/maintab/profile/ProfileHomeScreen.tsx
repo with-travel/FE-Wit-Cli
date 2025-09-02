@@ -1,4 +1,5 @@
 import { profileNavigations } from '@/constants/navigations';
+import useAuth from '@/hooks/queries/useAuth';
 import { ProfileStackParamList } from '@/navigations/stack/ProfileStackNavigator';
 import { StackScreenProps } from '@react-navigation/stack';
 import { StyleSheet, Text, View } from 'react-native';
@@ -10,9 +11,11 @@ type ProfileHomeScreenProps = StackScreenProps<
 >;
 
 function ProfileHomeScreen({ navigation }: ProfileHomeScreenProps) {
+  const { auth } = useAuth();
+
   return (
     <SafeAreaView style={styles.container}>
-      <Text>111</Text>
+      <Text>{auth.nickname}</Text>
       <View></View>
     </SafeAreaView>
   );
