@@ -33,73 +33,69 @@
 default_platform(:ios)
 
 platform :ios do
-  desc "Upload archive directly to TestFlight (from .xcarchive => .ipa => upload)"
+  desc "Upload archive directly to TestFlight (exportArchive only)"
   lane :upload_archive_to_testflight do |options|
-    # 1) 변경사항(릴리즈 노트)
     changelog = options[:changelog] || ENV["CHANGELOG"] || "새로운 버전이 출시되었습니다."
 
     puts "🚀 ========================================"
-    puts "🚀 TestFlight 직접 업로드 시작"
+    puts "🚀 TestFlight 직접 업로드 (exportArchive)"
     puts "🚀 ========================================"
     puts "📝 변경사항: #{changelog}"
 
-    # 2) .xcarchive 찾기
     possible_archive_paths = [
-      "../../build/Wit.xcarchive",  # fastlane 디렉토리 기준
-      "../build/Wit.xcarchive",     # ios 디렉토리 기준
-      "build/Wit.xcarchive"         # ios/build
+      "../../build/Wit.xcarchive",
+      "../build/Wit.xcarchive",
+      "build/Wit.xcarchive"
     ]
-
     archive_path = possible_archive_paths.find { |p| File.exist?(p) }
-    unless archive_path
-      puts "❌ 아카이브 파일을 찾을 수 없습니다!"
-      possible_archive_paths.each { |p| puts "  - #{p}" }
-      UI.user_error!("Archive file not found")
-    end
-    puts "✅ 아카이브 파일 발견: #{archive_path}"
-    puts "📦 아카이브 크기: #{`du -sh '#{archive_path}'`.strip}"
+    UI.user_error!("Archive file not found") unless archive_path
+    puts "✅ 아카이브: #{archive_path}"
+    puts "📦 크기: #{`du -sh '#{archive_path}'`.strip}"
 
-    # 3) .ipa 추출 (기존 아카이브 재활용)
-    #    - output_directory: ../build (ios/fastlane 기준으로 한 단계 위의 build)
-    #    - output_name: Wit.ipa
-    ipa_path = build_ios_app(
-      archive_path: archive_path,
-      skip_archive: true,                 # 이미 아카이브 있음
-      export_method: "app-store",
-      configuration: "Release",           # ✅ Release 강제
-      workspace: "./Wit.xcworkspace",     # (자동 감지되지만 명시해도 안전)
-      scheme: "Wit",
-    
-      # 내보내기 단계에서 프로비저닝/서명 정보를 확실히 지정
-      export_options: {
-        method: "app-store",
-        signingStyle: "manual",
-        signingCertificate: "Apple Distribution",
-        provisioningProfiles: {
-          "com.Juhkang.Wit" => (ENV["PROVISIONING_PROFILE_SPECIFIER"] || "Wit CLI Distribution")
-        }
-      },
+    # Export 설정
+    export_dir = "../build" # 루트/build에 .ipa 나오도록
+    sh "mkdir -p '#{export_dir}'"
 
-      # 불필요한 재탐지/패키지 처리 끄기(속도+안정)
-      skip_profile_detection: true,
-      skip_package_dependencies_resolution: true,
-    
-      # 내보내기 시 프로필/서명 관련 업데이트 허용(필요시)
-      export_xcargs: "-allowProvisioningUpdates",
-    
-      output_directory: "../build",
-      output_name: "Wit"
-    )
+    export_plist = "#{export_dir}/ExportOptions.plist"
+    profile_name = ENV["PROVISIONING_PROFILE_SPECIFIER"] || "Wit CLI Distribution"
+    team_id = "6S8WKQFV7D" # Appfile에 있는 팀 ID와 동일
 
+    File.write(export_plist, <<~PLIST)
+      <?xml version="1.0" encoding="UTF-8"?>
+      <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+      <plist version="1.0">
+      <dict>
+        <key>method</key><string>app-store</string>
+        <key>signingStyle</key><string>manual</string>
+        <key>teamID</key><string>#{team_id}</string>
+        <key>provisioningProfiles</key>
+        <dict>
+          <key>com.Juhkang.Wit</key><string>#{profile_name}</string>
+        </dict>
+        <key>uploadSymbols</key><true/>
+        <key>uploadBitcode</key><false/>
+      </dict>
+      </plist>
+    PLIST
 
-    # 4) TestFlight 업로드
+    # 🔁 빌드 없이 "exportArchive"만 수행
+    sh %Q[xcodebuild -exportArchive \
+      -archivePath "#{archive_path}" \
+      -exportPath "#{export_dir}" \
+      -exportOptionsPlist "#{export_plist}" \
+      -allowProvisioningUpdates]
+
+    ipa_path = Dir["#{export_dir}/*.ipa"].first
+    UI.user_error!("IPA not found after export") unless ipa_path
+    puts "✅ IPA 생성: #{ipa_path}"
+
     upload_to_testflight(
       ipa: ipa_path,
       changelog: changelog,
       skip_waiting_for_build_processing: true,
       skip_submission: true,
       distribute_external: false,
-      api_key_path: ENV["APP_STORE_CONNECT_API_KEY_PATH"] # 🔐 명시적으로 전달
+      api_key_path: ENV["APP_STORE_CONNECT_API_KEY_PATH"]
     )
 
     puts "✅ TestFlight 업로드 완료!"
