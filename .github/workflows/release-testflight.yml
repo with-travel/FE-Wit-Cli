@@ -336,6 +336,26 @@ jobs:
           echo "💎 Bundler 버전: $(bundle --version)"
           echo "✅ ========================================"
 
+      - name: 💎 Fastlane 설치 (Bundle Install)
+        run: |
+          echo "💎 ========================================"
+          echo "💎 Fastlane 설치 시작"
+          echo "💎 ========================================"
+          echo "📂 iOS 디렉토리로 이동 중..."
+          cd ios
+
+          echo "📋 Gemfile 내용 확인:"
+          cat Gemfile
+
+          echo ""
+          echo "📦 Bundle install 실행 중..."
+          bundle install
+
+          echo ""
+          echo "✅ Bundle install 완료!"
+          echo "💎 설치된 Fastlane 버전: $(bundle exec fastlane --version | head -1)"
+          echo "💎 ========================================"
+
       - name: 🏗️ CocoaPods 설치
         run: |
           echo "🏗️ ========================================"
@@ -603,9 +623,18 @@ jobs:
           fi
 
           echo ""
-          echo "🔍 Bundler 및 Fastlane 상태 확인:"
+          echo "🔍 Bundler 및 Fastlane 상태 재확인:"
           echo "  - Bundler 버전: $(bundle --version)"
-          echo "  - Fastlane 설치 확인: $(bundle exec fastlane --version | head -1)"
+
+          # Fastlane 설치 상태 확인
+          if bundle exec fastlane --version > /dev/null 2>&1; then
+            echo "  ✅ Fastlane 설치 확인됨: $(bundle exec fastlane --version | head -1)"
+          else
+            echo "  ❌ Fastlane이 설치되지 않았습니다!"
+            echo "  📦 Bundle install 재실행 중..."
+            bundle install
+            echo "  ✅ Bundle install 완료"
+          fi
 
           echo ""
           echo "🔍 사용 가능한 Fastlane Lane 확인:"
@@ -644,9 +673,15 @@ jobs:
             exit 1
           fi
 
-          echo ""
+                    echo ""
           echo "🚀 Fastlane build_and_export 실행 중..."
           echo "📦 ========================================"
+
+          # Fastlane 실행 전 마지막 안전 확인
+          if ! bundle exec fastlane --version > /dev/null 2>&1; then
+            echo "❌ Fastlane 실행 불가! Bundle install 재실행..."
+            bundle install
+          fi
 
           bundle exec fastlane build_and_export
 
@@ -724,9 +759,15 @@ jobs:
           echo "$CHANGELOG"
           echo "----------------------------------------"
 
-          echo ""
+                    echo ""
           echo "🚀 Fastlane upload_testflight 실행 중..."
           echo "🚀 ========================================"
+
+          # Fastlane 실행 전 마지막 안전 확인
+          if ! bundle exec fastlane --version > /dev/null 2>&1; then
+            echo "❌ Fastlane 실행 불가! Bundle install 재실행..."
+            bundle install
+          fi
 
           bundle exec fastlane upload_testflight
 
