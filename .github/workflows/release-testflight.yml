@@ -720,19 +720,33 @@ jobs:
           echo "✅ Fastlane IPA 내보내기 완료!"
           echo "📦 ========================================"
           echo "📁 생성된 IPA 파일 확인:"
+          # 여러 경로에서 IPA 확인 (ios 디렉토리 기준)
+          ipa_found=false
           if [ -d "../build/ipa" ]; then
-            echo "  ✅ IPA 디렉토리 존재함"
+            echo "  ✅ IPA 디렉토리 존재함: ../build/ipa"
             echo "  📊 디렉토리 내용:"
             ls -la ../build/ipa/
             if [ -f "../build/ipa/Wit.ipa" ]; then
-              echo "  ✅ IPA 파일 생성 성공"
+              echo "  ✅ IPA 파일 생성 성공: ../build/ipa/Wit.ipa"
               echo "  📊 IPA 파일 크기: $(du -h ../build/ipa/Wit.ipa | cut -f1)"
-            else
-              echo "  ❌ IPA 파일이 생성되지 않았습니다!"
-              exit 1
+              ipa_found=true
             fi
-          else
-            echo "  ❌ IPA 디렉토리가 생성되지 않았습니다!"
+          elif [ -d "build/ipa" ]; then
+            echo "  ✅ IPA 디렉토리 존재함: build/ipa"
+            echo "  📊 디렉토리 내용:"
+            ls -la build/ipa/
+            if [ -f "build/ipa/Wit.ipa" ]; then
+              echo "  ✅ IPA 파일 생성 성공: build/ipa/Wit.ipa"
+              echo "  📊 IPA 파일 크기: $(du -h build/ipa/Wit.ipa | cut -f1)"
+              ipa_found=true
+            fi
+          fi
+
+          if [ "$ipa_found" = false ]; then
+            echo "  ❌ IPA 파일을 찾을 수 없습니다!"
+            echo "  🔍 확인한 위치들:"
+            echo "    - ../build/ipa/Wit.ipa"
+            echo "    - build/ipa/Wit.ipa"
             exit 1
           fi
           echo "📦 ========================================"
