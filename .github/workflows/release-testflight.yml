@@ -704,7 +704,58 @@ jobs:
             echo "⚠️  Fastlane이 아카이브를 찾지 못하면 상세한 디버그 정보를 출력할 것입니다."
           fi
 
-                    echo ""
+                              echo ""
+          echo "🔐 ========================================"
+          echo "🔐 코드 사이닝 상태 최종 점검"
+          echo "🔐 ========================================"
+
+          echo "🔍 키체인 상태 확인:"
+          security list-keychains -d user
+
+          echo ""
+          echo "🔍 설치된 코드 사이닝 인증서 확인:"
+          # 모든 키체인에서 코드 사이닝 인증서 찾기
+          for keychain in $(security list-keychains -d user | tr -d '"'); do
+            if [ -f "$keychain" ]; then
+              echo "  📋 키체인: $keychain"
+              security find-identity -v -p codesigning "$keychain" 2>/dev/null || echo "    ❌ 코드 사이닝 인증서 없음"
+            fi
+          done
+
+          echo ""
+          echo "🔍 프로비저닝 프로파일 확인:"
+          echo "  - 지정된 프로파일: $PROVISIONING_PROFILE_SPECIFIER"
+
+          # 현재 디렉토리의 profile.mobileprovision 확인
+          if [ -f "profile.mobileprovision" ]; then
+            echo "  ✅ profile.mobileprovision 파일 존재 (현재 디렉토리)"
+            echo "  📋 프로파일 정보:"
+            security cms -D -i profile.mobileprovision 2>/dev/null | grep -E "Name|TeamName|UUID|TeamIdentifier" | head -10 || echo "    ❌ 프로파일 정보 읽기 실패"
+          else
+            echo "  ❌ profile.mobileprovision 파일 없음 (현재 디렉토리)"
+          fi
+
+          # 상위 디렉토리의 profile.mobileprovision 확인
+          if [ -f "../profile.mobileprovision" ]; then
+            echo "  ✅ profile.mobileprovision 파일 존재 (상위 디렉토리)"
+            echo "  📋 상위 디렉토리 프로파일 정보:"
+            security cms -D -i ../profile.mobileprovision 2>/dev/null | grep -E "Name|TeamName|UUID|TeamIdentifier" | head -10 || echo "    ❌ 프로파일 정보 읽기 실패"
+          else
+            echo "  ❌ profile.mobileprovision 파일 없음 (상위 디렉토리)"
+          fi
+
+          echo ""
+          echo "🔍 ~/Library/MobileDevice/Provisioning\ Profiles/ 확인:"
+          if [ -d ~/Library/MobileDevice/Provisioning\ Profiles/ ]; then
+            echo "  📂 설치된 프로비저닝 프로파일 개수: $(ls ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision 2>/dev/null | wc -l)"
+            ls -la ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision 2>/dev/null | head -5 || echo "    ❌ 프로비저닝 프로파일 없음"
+          else
+            echo "  ❌ 프로비저닝 프로파일 디렉토리 없음"
+          fi
+
+          echo "🔐 ========================================"
+
+          echo ""
           echo "🚀 Fastlane build_and_export 실행 중..."
           echo "📦 ========================================"
 
