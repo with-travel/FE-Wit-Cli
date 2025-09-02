@@ -178,7 +178,7 @@ jobs:
     needs: prepare-release
     runs-on: macos-14
     steps:
-      - name: 📋 Job 시작 로그
+      - name: 📋 Job 시작 및 필수 Secrets 검증
         run: |
           echo "🚀 ========================================"
           echo "🚀 Deploy to TestFlight Job 시작"
@@ -187,7 +187,84 @@ jobs:
           echo "🔧 Runner OS: ${{ runner.os }}"
           echo "💻 Runner Architecture: ${{ runner.arch }}"
           echo "📦 필요한 버전 정보: ${{ needs.prepare-release.outputs.new_version }}"
+          echo ""
+          echo "🔍 필수 GitHub Secrets 검증:"
+
+          # 필수 Secrets 목록
+          MISSING_SECRETS=""
+
+                    if [ -z "$APPLE_DISTRIBUTION_CERTIFICATE_BASE64" ]; then
+            echo "❌ APPLE_CERTIFICATE_BASE64 누락"
+            MISSING_SECRETS="$MISSING_SECRETS APPLE_CERTIFICATE_BASE64"
+          else
+            echo "✅ APPLE_CERTIFICATE_BASE64"
+          fi
+
+          if [ -z "$APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD" ]; then
+            echo "❌ APPLE_CERTIFICATE_PASSWORD 누락"
+            MISSING_SECRETS="$MISSING_SECRETS APPLE_CERTIFICATE_PASSWORD"
+          else
+            echo "✅ APPLE_CERTIFICATE_PASSWORD"
+          fi
+
+          if [ -z "$APPLE_PROVISIONING_PROFILE_BASE64" ]; then
+            echo "❌ APPLE_PROVISIONING_PROFILE_BASE64 누락"
+            MISSING_SECRETS="$MISSING_SECRETS APPLE_PROVISIONING_PROFILE_BASE64"
+          else
+            echo "✅ APPLE_PROVISIONING_PROFILE_BASE64"
+          fi
+
+          if [ -z "$APP_STORE_CONNECT_API_KEY_ID" ]; then
+            echo "❌ APP_STORE_CONNECT_API_KEY_ID 누락"
+            MISSING_SECRETS="$MISSING_SECRETS APP_STORE_CONNECT_API_KEY_ID"
+          else
+            echo "✅ APP_STORE_CONNECT_API_KEY_ID"
+          fi
+
+          if [ -z "$APP_STORE_CONNECT_ISSUER_ID" ]; then
+            echo "❌ APP_STORE_CONNECT_ISSUER_ID 누락"
+            MISSING_SECRETS="$MISSING_SECRETS APP_STORE_CONNECT_ISSUER_ID"
+          else
+            echo "✅ APP_STORE_CONNECT_ISSUER_ID"
+          fi
+
+          if [ -z "$APP_STORE_CONNECT_API_KEY_BASE64" ]; then
+            echo "❌ APP_STORE_CONNECT_API_KEY_BASE64 누락"
+            MISSING_SECRETS="$MISSING_SECRETS APP_STORE_CONNECT_API_KEY_BASE64"
+          else
+            echo "✅ APP_STORE_CONNECT_API_KEY_BASE64"
+          fi
+
+          if [ -z "$APPLE_ID" ]; then
+            echo "❌ APPLE_ID 누락"
+            MISSING_SECRETS="$MISSING_SECRETS APPLE_ID"
+          else
+            echo "✅ APPLE_ID: $APPLE_ID"
+          fi
+
+          if [ -n "$MISSING_SECRETS" ]; then
+            echo ""
+            echo "❌ ========================================"
+            echo "❌ 누락된 GitHub Secrets:"
+            for secret in $MISSING_SECRETS; do
+              echo "  - $secret"
+            done
+            echo "❌ ========================================"
+            echo "해결 방법: GitHub 저장소 Settings > Secrets and variables > Actions에서 누락된 Secrets를 추가해주세요."
+            exit 1
+          fi
+
+          echo ""
+          echo "✅ 모든 필수 Secrets가 설정되었습니다!"
           echo "🚀 ========================================"
+        env:
+          APPLE_DISTRIBUTION_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_PROVISIONING_PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
       - name: 📥 소스 코드 체크아웃
         uses: actions/checkout@v4
         with:
@@ -274,20 +351,40 @@ jobs:
           echo "🏗️ ========================================"
 
       # 인증서 설치 (아카이브 빌드에 필요)
-      - name: 🔐 Apple Distribution 인증서 설치
+      - name: 🔐 인증서 설치 사전 검증
         run: |
           echo "🔐 ========================================"
-          echo "🔐 Apple Distribution 인증서 설치 시작"
+          echo "🔐 Apple Distribution 인증서 설치 사전 검증"
           echo "🔐 ========================================"
           echo "📋 인증서 설치 전 키체인 상태:"
           security list-keychains -d user
-          echo "🔐 ========================================"
+          echo ""
+          echo "🔍 GitHub Secrets 검증:"
+          if [ -z "${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE_BASE64 }}" ]; then
+            echo "❌ APPLE_DISTRIBUTION_CERTIFICATE_BASE64 Secret이 설정되지 않았습니다!"
+            exit 1
+          else
+            echo "✅ APPLE_DISTRIBUTION_CERTIFICATE_BASE64 Secret 존재함"
+            echo "📊 인증서 데이터 길이: ${#APPLE_DISTRIBUTION_CERTIFICATE_BASE64}"
+          fi
 
-      - name: Import Code Signing Certificate
+          if [ -z "${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD }}" ]; then
+            echo "❌ APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD Secret이 설정되지 않았습니다!"
+            exit 1
+          else
+            echo "✅ APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD Secret 존재함"
+          fi
+          echo "🔐 ========================================"
+        env:
+          APPLE_DISTRIBUTION_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+
+      - name: 🔐 Apple Distribution 인증서 설치
         uses: apple-actions/import-codesign-certs@v3
         with:
-          p12-file-base64: ${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE_BASE64 }}
-          p12-password: ${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+          p12-file-base64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          keychain: signing_temp
+          create-keychain: true
 
       - name: ✅ 인증서 설치 완료 확인
         run: |
@@ -474,6 +571,48 @@ jobs:
           echo "  - 파일 크기: $([ -f "$API_KEY_PATH" ] && du -h "$API_KEY_PATH" | cut -f1 || echo "N/A")"
           echo "🔑 ========================================"
 
+      - name: 📦 Fastlane 사전 검증
+        run: |
+          echo "📦 ========================================"
+          echo "📦 Fastlane 사전 검증 시작"
+          echo "📦 ========================================"
+
+          echo "📂 iOS 디렉토리로 이동 중..."
+          cd ios
+
+          echo "🔍 Fastlane 설정 파일 확인:"
+          if [ -f "fastlane/Fastfile" ]; then
+            echo "  ✅ Fastfile 존재함"
+          else
+            echo "  ❌ Fastfile이 존재하지 않습니다!"
+            exit 1
+          fi
+
+          if [ -f "fastlane/Appfile" ]; then
+            echo "  ✅ Appfile 존재함"
+          else
+            echo "  ❌ Appfile이 존재하지 않습니다!"
+            exit 1
+          fi
+
+          if [ -f "Gemfile" ]; then
+            echo "  ✅ Gemfile 존재함"
+          else
+            echo "  ❌ Gemfile이 존재하지 않습니다!"
+            exit 1
+          fi
+
+          echo ""
+          echo "🔍 Bundler 및 Fastlane 상태 확인:"
+          echo "  - Bundler 버전: $(bundle --version)"
+          echo "  - Fastlane 설치 확인: $(bundle exec fastlane --version | head -1)"
+
+          echo ""
+          echo "🔍 사용 가능한 Fastlane Lane 확인:"
+          bundle exec fastlane lanes
+
+          echo "📦 ========================================"
+
       - name: 📦 Fastlane IPA 내보내기
         run: |
           echo "📦 ========================================"
@@ -498,9 +637,12 @@ jobs:
           echo "  - APPLE_ID: $APPLE_ID"
 
           echo ""
-          echo "📋 Fastlane 준비 상태 확인:"
-          echo "  - Fastlane 버전: $(bundle exec fastlane --version | head -1)"
+          echo "📋 Fastlane 실행 전 최종 확인:"
           echo "  - 아카이브 파일 존재: $([ -d "../build/Wit.xcarchive" ] && echo "✅ 예" || echo "❌ 아니오")"
+          if [ ! -d "../build/Wit.xcarchive" ]; then
+            echo "❌ 아카이브 파일이 존재하지 않습니다. Fastlane을 실행할 수 없습니다."
+            exit 1
+          fi
 
           echo ""
           echo "🚀 Fastlane build_and_export 실행 중..."
@@ -521,9 +663,11 @@ jobs:
               echo "  📊 IPA 파일 크기: $(du -h ../build/ipa/Wit.ipa | cut -f1)"
             else
               echo "  ❌ IPA 파일이 생성되지 않았습니다!"
+              exit 1
             fi
           else
             echo "  ❌ IPA 디렉토리가 생성되지 않았습니다!"
+            exit 1
           fi
           echo "📦 ========================================"
 
