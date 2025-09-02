@@ -30,10 +30,12 @@ platform :ios do
     
     # 아카이브가 이미 존재하는지 확인 (여러 경로 시도)
     possible_paths = [
-      "../build/Wit.xcarchive",           # 프로젝트 루트/build
+      "../../build/Wit.xcarchive",        # fastlane 디렉토리 기준 (가장 가능성 높음)
+      "../build/Wit.xcarchive",           # ios 디렉토리 기준
       "build/Wit.xcarchive",              # ios/build  
-      File.expand_path("../build/Wit.xcarchive", Dir.pwd),  # 절대경로
-      File.expand_path("build/Wit.xcarchive", Dir.pwd)      # ios 기준 절대경로
+      File.expand_path("../../build/Wit.xcarchive", Dir.pwd),  # fastlane 기준 절대경로
+      File.expand_path("../build/Wit.xcarchive", Dir.pwd),     # ios 기준 절대경로
+      File.expand_path("build/Wit.xcarchive", Dir.pwd)         # 현재 디렉토리 기준
     ]
     
     archive_path = nil
@@ -77,10 +79,13 @@ platform :ios do
     puts "📝 Export Options:"
     puts export_options
     
-    # IPA 내보내기
+    # IPA 내보내기 (fastlane 디렉토리 기준으로 경로 수정)
+    output_directory = "../../build/ipa"
+    puts "📁 IPA 출력 디렉토리: #{output_directory}"
+    
     export_ipa(
       archive_path: archive_path,
-      output_directory: "../build/ipa",
+      output_directory: output_directory,
       export_options: export_options
     )
     
@@ -91,10 +96,25 @@ platform :ios do
   lane :upload_testflight do |options|
     changelog = options[:changelog] || ENV["CHANGELOG"] || "새로운 버전이 출시되었습니다."
     
-    # IPA 파일 경로 확인
-    ipa_path = "../build/ipa/Wit.ipa"
-    unless File.exist?(ipa_path)
-      UI.user_error!("IPA file not found at #{ipa_path}")
+    # IPA 파일 경로 확인 (fastlane 디렉토리 기준)
+    possible_ipa_paths = [
+      "../../build/ipa/Wit.ipa",     # fastlane 디렉토리 기준
+      "../build/ipa/Wit.ipa"         # ios 디렉토리 기준
+    ]
+    
+    ipa_path = nil
+    possible_ipa_paths.each do |path|
+      if File.exist?(path)
+        ipa_path = path
+        break
+      end
+    end
+    
+    unless ipa_path
+      puts "❌ IPA 파일을 찾을 수 없습니다!"
+      puts "시도한 경로들:"
+      possible_ipa_paths.each { |path| puts "  - #{path}" }
+      UI.user_error!("IPA file not found")
     end
     
     puts "📦 IPA 파일 확인됨: #{ipa_path}"
