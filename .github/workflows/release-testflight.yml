@@ -90,7 +90,7 @@ jobs:
         run: |
           gh pr comment ${{ github.event.pull_request.number }} --body "@coderabbitai review"
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
 
       - name: Wait for CodeRabbit Summary
         id: detect_summary
@@ -111,7 +111,7 @@ jobs:
           echo "summary_found=false" >> $GITHUB_OUTPUT
           exit 1
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
 
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -193,14 +193,14 @@ jobs:
           # 필수 Secrets 목록
           MISSING_SECRETS=""
 
-                    if [ -z "$APPLE_DISTRIBUTION_CERTIFICATE_BASE64" ]; then
+                              if [ -z "$APPLE_CERTIFICATE_BASE64" ]; then
             echo "❌ APPLE_CERTIFICATE_BASE64 누락"
             MISSING_SECRETS="$MISSING_SECRETS APPLE_CERTIFICATE_BASE64"
           else
             echo "✅ APPLE_CERTIFICATE_BASE64"
           fi
 
-          if [ -z "$APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD" ]; then
+          if [ -z "$APPLE_CERTIFICATE_PASSWORD" ]; then
             echo "❌ APPLE_CERTIFICATE_PASSWORD 누락"
             MISSING_SECRETS="$MISSING_SECRETS APPLE_CERTIFICATE_PASSWORD"
           else
@@ -258,8 +258,8 @@ jobs:
           echo "✅ 모든 필수 Secrets가 설정되었습니다!"
           echo "🚀 ========================================"
         env:
-          APPLE_DISTRIBUTION_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
-          APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_PROVISIONING_PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
           APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
@@ -359,24 +359,24 @@ jobs:
           echo "📋 인증서 설치 전 키체인 상태:"
           security list-keychains -d user
           echo ""
-          echo "🔍 GitHub Secrets 검증:"
-          if [ -z "${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE_BASE64 }}" ]; then
-            echo "❌ APPLE_DISTRIBUTION_CERTIFICATE_BASE64 Secret이 설정되지 않았습니다!"
+                    echo "🔍 GitHub Secrets 검증:"
+          if [ -z "${{ secrets.APPLE_CERTIFICATE_BASE64 }}" ]; then
+            echo "❌ APPLE_CERTIFICATE_BASE64 Secret이 설정되지 않았습니다!"
             exit 1
           else
-            echo "✅ APPLE_DISTRIBUTION_CERTIFICATE_BASE64 Secret 존재함"
-            echo "📊 인증서 데이터 길이: ${#APPLE_DISTRIBUTION_CERTIFICATE_BASE64}"
+            echo "✅ APPLE_CERTIFICATE_BASE64 Secret 존재함"
+            echo "📊 인증서 데이터 길이: ${#APPLE_CERTIFICATE_BASE64}"
           fi
 
-          if [ -z "${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD }}" ]; then
-            echo "❌ APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD Secret이 설정되지 않았습니다!"
+          if [ -z "${{ secrets.APPLE_CERTIFICATE_PASSWORD }}" ]; then
+            echo "❌ APPLE_CERTIFICATE_PASSWORD Secret이 설정되지 않았습니다!"
             exit 1
           else
-            echo "✅ APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD Secret 존재함"
+            echo "✅ APPLE_CERTIFICATE_PASSWORD Secret 존재함"
           fi
           echo "🔐 ========================================"
         env:
-          APPLE_DISTRIBUTION_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
 
       - name: 🔐 Apple Distribution 인증서 설치
         uses: apple-actions/import-codesign-certs@v3
