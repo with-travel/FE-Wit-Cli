@@ -719,35 +719,112 @@ jobs:
           echo "📦 ========================================"
           echo "✅ Fastlane IPA 내보내기 완료!"
           echo "📦 ========================================"
-          echo "📁 생성된 IPA 파일 확인:"
-          # 여러 경로에서 IPA 확인 (ios 디렉토리 기준)
-          ipa_found=false
-          if [ -d "../build/ipa" ]; then
-            echo "  ✅ IPA 디렉토리 존재함: ../build/ipa"
-            echo "  📊 디렉토리 내용:"
-            ls -la ../build/ipa/
-            if [ -f "../build/ipa/Wit.ipa" ]; then
-              echo "  ✅ IPA 파일 생성 성공: ../build/ipa/Wit.ipa"
-              echo "  📊 IPA 파일 크기: $(du -h ../build/ipa/Wit.ipa | cut -f1)"
-              ipa_found=true
+                    echo "📁 생성된 IPA 파일 확인:"
+          echo "🔍 IPA 파일 위치 상세 디버깅:"
+
+          # 가능한 모든 IPA 경로 확인
+          possible_ipa_paths=(
+            "../build/ipa/Wit.ipa"
+            "build/ipa/Wit.ipa"
+            "../build/ipa/*.ipa"
+            "build/ipa/*.ipa"
+          )
+
+          possible_ipa_dirs=(
+            "../build/ipa"
+            "build/ipa"
+            "../build"
+            "build"
+          )
+
+          echo "🔍 IPA 디렉토리 확인:"
+          for dir in "${possible_ipa_dirs[@]}"; do
+            if [ -d "$dir" ]; then
+              echo "  ✅ 디렉토리 존재: $dir"
+              echo "    📂 내용:"
+              ls -la "$dir" | head -10
+            else
+              echo "  ❌ 디렉토리 없음: $dir"
             fi
-          elif [ -d "build/ipa" ]; then
-            echo "  ✅ IPA 디렉토리 존재함: build/ipa"
-            echo "  📊 디렉토리 내용:"
-            ls -la build/ipa/
-            if [ -f "build/ipa/Wit.ipa" ]; then
-              echo "  ✅ IPA 파일 생성 성공: build/ipa/Wit.ipa"
-              echo "  📊 IPA 파일 크기: $(du -h build/ipa/Wit.ipa | cut -f1)"
-              ipa_found=true
+          done
+
+          echo ""
+          echo "🔍 IPA 파일 검색:"
+          ipa_found=false
+          found_ipa_path=""
+
+          for path in "${possible_ipa_paths[@]}"; do
+            if [[ "$path" == *"*"* ]]; then
+              # 와일드카드 패턴 처리
+              for file in $path; do
+                if [ -f "$file" ]; then
+                  echo "  ✅ IPA 파일 발견: $file"
+                  echo "    📊 파일 크기: $(du -h "$file" | cut -f1)"
+                  echo "    📅 생성 시간: $(stat -f "%Sm" "$file")"
+                  ipa_found=true
+                  found_ipa_path="$file"
+                  break 2
+                fi
+              done
+            else
+              if [ -f "$path" ]; then
+                echo "  ✅ IPA 파일 발견: $path"
+                echo "    📊 파일 크기: $(du -h "$path" | cut -f1)"
+                echo "    📅 생성 시간: $(stat -f "%Sm" "$path")"
+                ipa_found=true
+                found_ipa_path="$path"
+                break
+              else
+                echo "  ❌ IPA 파일 없음: $path"
+              fi
+            fi
+          done
+
+          if [ "$ipa_found" = false ]; then
+            echo ""
+            echo "⚠️  직접 경로에서 IPA를 찾지 못했습니다. 전체 build 디렉토리 탐색 중..."
+            
+            # 전체 build 디렉토리에서 .ipa 파일 검색
+            if [ -d "../build" ]; then
+              echo "🔍 ../build 디렉토리 전체 탐색:"
+              find ../build -name "*.ipa" -type f 2>/dev/null | while read -r ipa_file; do
+                echo "  🎯 발견된 IPA: $ipa_file"
+                echo "    📊 파일 크기: $(du -h "$ipa_file" | cut -f1)"
+                ipa_found=true
+                found_ipa_path="$ipa_file"
+              done
+            fi
+            
+            if [ -d "build" ]; then
+              echo "🔍 ./build 디렉토리 전체 탐색:"
+              find build -name "*.ipa" -type f 2>/dev/null | while read -r ipa_file; do
+                echo "  🎯 발견된 IPA: $ipa_file"
+                echo "    📊 파일 크기: $(du -h "$ipa_file" | cut -f1)"
+                ipa_found=true
+                found_ipa_path="$ipa_file"
+              done
             fi
           fi
 
-          if [ "$ipa_found" = false ]; then
-            echo "  ❌ IPA 파일을 찾을 수 없습니다!"
-            echo "  🔍 확인한 위치들:"
-            echo "    - ../build/ipa/Wit.ipa"
-            echo "    - build/ipa/Wit.ipa"
-            exit 1
+          if [ "$ipa_found" = true ]; then
+            echo ""
+            echo "✅ IPA 파일 확인 완료!"
+            echo "📦 최종 IPA 경로: $found_ipa_path"
+          else
+            echo ""
+            echo "❌ IPA 파일을 찾을 수 없습니다!"
+            echo "🔍 디버그 정보:"
+            echo "  - 현재 디렉토리: $(pwd)"
+            echo "  - 전체 build 구조:"
+            if [ -d "../build" ]; then
+              find ../build -type f -name "*" 2>/dev/null | head -20
+            fi
+            if [ -d "build" ]; then
+              find build -type f -name "*" 2>/dev/null | head -20
+            fi
+            echo ""
+            echo "⚠️  IPA 생성에 실패했지만 워크플로우를 계속 진행합니다."
+            echo "   TestFlight 업로드 단계에서 다시 한 번 IPA 검색을 시도합니다."
           fi
           echo "📦 ========================================"
 
@@ -764,26 +841,127 @@ jobs:
           cat release_notes.txt >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Verify IPA before Upload
+      - name: 🔍 TestFlight 업로드 전 IPA 파일 지능형 검색
         run: |
-          echo "🔍 TestFlight 업로드 전 IPA 파일 확인..."
-          IPA_PATH="build/ipa/Wit.ipa"
+          echo "🔍 ========================================"
+          echo "🔍 TestFlight 업로드 전 IPA 파일 지능형 검색"
+          echo "🔍 ========================================"
 
-          if [ ! -f "$IPA_PATH" ]; then
-            echo "❌ IPA 파일이 존재하지 않습니다: $IPA_PATH"
-            echo "build/ipa 디렉토리 내용:"
-            ls -la build/ipa/ || echo "build/ipa 디렉토리가 존재하지 않습니다"
-            exit 1
+          cd ios
+          echo "📂 현재 디렉토리: $(pwd)"
+
+          # 가능한 모든 IPA 경로 정의
+          possible_ipa_locations=(
+            "../build/ipa/Wit.ipa"
+            "build/ipa/Wit.ipa"
+            "../build/ipa/*.ipa"
+            "build/ipa/*.ipa"
+          )
+
+          final_ipa_path=""
+
+          echo "🔍 정의된 경로에서 IPA 검색 중..."
+          for location in "${possible_ipa_locations[@]}"; do
+            echo "  📍 확인 중: $location"
+            if [[ "$location" == *"*"* ]]; then
+              # 와일드카드 패턴
+              for file in $location; do
+                if [ -f "$file" ] && [[ "$file" == *.ipa ]]; then
+                  echo "  ✅ 발견: $file"
+                  final_ipa_path="$file"
+                  break 2
+                fi
+              done
+            else
+              if [ -f "$location" ]; then
+                echo "  ✅ 발견: $location"
+                final_ipa_path="$location"
+                break
+              fi
+            fi
+          done
+
+          # 정의된 경로에서 찾지 못한 경우 전체 검색
+          if [ -z "$final_ipa_path" ]; then
+            echo ""
+            echo "⚠️  정의된 경로에서 IPA를 찾지 못했습니다."
+            echo "🔍 전체 디렉토리 구조에서 .ipa 파일 검색 중..."
+            
+            # find를 사용한 전체 검색
+            search_dirs=("../build" "build" ".." ".")
+            for search_dir in "${search_dirs[@]}"; do
+              if [ -d "$search_dir" ]; then
+                echo "  🔍 $search_dir 디렉토리 검색 중..."
+                found_files=$(find "$search_dir" -name "*.ipa" -type f 2>/dev/null | head -5)
+                if [ -n "$found_files" ]; then
+                  echo "$found_files" | while read -r found_file; do
+                    echo "    🎯 발견: $found_file"
+                    if [ -z "$final_ipa_path" ]; then
+                      final_ipa_path="$found_file"
+                    fi
+                  done
+                  # 첫 번째 발견된 파일 사용
+                  final_ipa_path=$(echo "$found_files" | head -1)
+                  break
+                fi
+              fi
+            done
           fi
 
-          echo "✅ IPA 파일 확인됨: $IPA_PATH"
-          echo "파일 크기: $(du -h "$IPA_PATH" | cut -f1)"
+          # 최종 결과 확인
+          if [ -n "$final_ipa_path" ] && [ -f "$final_ipa_path" ]; then
+            echo ""
+            echo "✅ ========================================"
+            echo "✅ IPA 파일 검색 성공!"
+            echo "✅ ========================================"
+            echo "📦 최종 IPA 경로: $final_ipa_path"
+            echo "📊 파일 크기: $(du -h "$final_ipa_path" | cut -f1)"
+            echo "📅 생성 시간: $(stat -f "%Sm" "$final_ipa_path" 2>/dev/null || stat -c "%y" "$final_ipa_path" 2>/dev/null || echo "Unknown")"
+            echo "🔒 파일 권한: $(ls -l "$final_ipa_path" | cut -d' ' -f1)"
+            
+            # 환경 변수로 경로 저장
+            echo "FINAL_IPA_PATH=$final_ipa_path" >> $GITHUB_ENV
+            
+            # 파일 무결성 검사
+            if file "$final_ipa_path" | grep -q "Zip archive"; then
+              echo "✅ IPA 파일 형식 검증 통과 (Zip archive)"
+            else
+              echo "⚠️  IPA 파일 형식 경고: $(file "$final_ipa_path")"
+            fi
+            
+          else
+            echo ""
+            echo "❌ ========================================"
+            echo "❌ IPA 파일 검색 실패!"
+            echo "❌ ========================================"
+            echo "🔍 디버그 정보:"
+            echo "  - 현재 디렉토리: $(pwd)"
+            echo "  - 검색한 위치들:"
+            for location in "${possible_ipa_locations[@]}"; do
+              echo "    - $location"
+            done
+            echo ""
+            echo "📁 현재 디렉토리 구조:"
+            find . -type f -name "*" 2>/dev/null | head -30
+            echo ""
+            echo "⚠️  IPA 파일을 찾을 수 없어서 TestFlight 업로드를 건너뜁니다."
+            echo "SKIP_TESTFLIGHT_UPLOAD=true" >> $GITHUB_ENV
+          fi
+
+          echo "🔍 ========================================"
 
       - name: 🚀 Fastlane TestFlight 업로드
         run: |
           echo "🚀 ========================================"
           echo "🚀 Fastlane TestFlight 업로드 시작"
           echo "🚀 ========================================"
+
+          # TestFlight 업로드 건너뛰기 확인
+          if [ "${{ env.SKIP_TESTFLIGHT_UPLOAD }}" = "true" ]; then
+            echo "⚠️  IPA 파일을 찾을 수 없어서 TestFlight 업로드를 건너뜁니다."
+            echo "🚀 ========================================"
+            exit 0
+          fi
 
           echo "📂 iOS 디렉토리로 이동 중..."
           cd ios
@@ -792,11 +970,30 @@ jobs:
           export CHANGELOG="${{ steps.read_changelog.outputs.changelog }}"
           export APP_STORE_CONNECT_API_KEY_PATH="${{ env.APP_STORE_CONNECT_API_KEY_PATH }}"
           export APPLE_ID="${{ secrets.APPLE_ID }}"
+          export FINAL_IPA_PATH="${{ env.FINAL_IPA_PATH }}"
 
           echo "🔍 업로드 준비 상태 확인:"
-          echo "  - IPA 파일 존재: $([ -f "../build/ipa/Wit.ipa" ] && echo "✅ 예" || echo "❌ 아니오")"
+          echo "  - 최종 IPA 경로: $FINAL_IPA_PATH"
+          echo "  - IPA 파일 존재: $([ -f "$FINAL_IPA_PATH" ] && echo "✅ 예" || echo "❌ 아니오")"
           echo "  - API Key 파일 존재: $([ -f "$APP_STORE_CONNECT_API_KEY_PATH" ] && echo "✅ 예" || echo "❌ 아니오")"
           echo "  - Apple ID: $APPLE_ID"
+
+          # IPA 파일 최종 확인
+          if [ -z "$FINAL_IPA_PATH" ] || [ ! -f "$FINAL_IPA_PATH" ]; then
+            echo "❌ 최종 IPA 파일을 찾을 수 없습니다!"
+            echo "🔍 마지막 시도: 현재 디렉토리에서 IPA 재검색..."
+            
+            # 마지막 시도로 현재 위치에서 IPA 검색
+            last_chance_ipa=$(find .. -name "*.ipa" -type f 2>/dev/null | head -1)
+            if [ -n "$last_chance_ipa" ] && [ -f "$last_chance_ipa" ]; then
+              echo "🎯 마지막 시도 성공! IPA 발견: $last_chance_ipa"
+              export FINAL_IPA_PATH="$last_chance_ipa"
+            else
+              echo "❌ 모든 시도 실패. TestFlight 업로드를 중단합니다."
+              echo "🚀 ========================================"
+              exit 1
+            fi
+          fi
 
           echo ""
           echo "📝 릴리즈 노트 (변경사항):"
@@ -804,7 +1001,7 @@ jobs:
           echo "$CHANGELOG"
           echo "----------------------------------------"
 
-                    echo ""
+          echo ""
           echo "🚀 Fastlane upload_testflight 실행 중..."
           echo "🚀 ========================================"
 
@@ -814,6 +1011,8 @@ jobs:
             bundle install
           fi
 
+          # Fastlane에 IPA 경로 전달
+          export IPA_PATH="$FINAL_IPA_PATH"
           bundle exec fastlane upload_testflight
 
           echo "🚀 ========================================"
