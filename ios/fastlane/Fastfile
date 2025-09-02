@@ -16,308 +16,57 @@
 default_platform(:ios)
 
 platform :ios do
-  desc "Build and export IPA for TestFlight"
-  lane :build_and_export do |options|
+  desc "Upload archive directly to TestFlight (simplified)"
+  lane :upload_archive_to_testflight do |options|
     # 환경 변수에서 값 가져오기
-    version_name = options[:version_name] || ENV["VERSION_NAME"]
-    build_number = options[:build_number] || ENV["BUILD_NUMBER"]
-    provisioning_profile = options[:provisioning_profile] || ENV["PROVISIONING_PROFILE_SPECIFIER"]
+    changelog = options[:changelog] || ENV["CHANGELOG"] || "새로운 버전이 출시되었습니다."
     
-    # 버전 정보 출력
-    puts "🔢 Version: #{version_name}"
-    puts "🔢 Build Number: #{build_number}"
-    puts "📱 Provisioning Profile: #{provisioning_profile}"
+    puts "🚀 ========================================"
+    puts "🚀 TestFlight 직접 업로드 시작"
+    puts "🚀 ========================================"
+    puts "📝 변경사항: #{changelog}"
     
-    # 실제 프로비저닝 프로파일 이름 확인 및 자동 감지
-    puts "🔍 실제 설치된 프로비저닝 프로파일 확인 중..."
-    provisioning_dir = File.expand_path("~/Library/MobileDevice/Provisioning Profiles")
-    actual_profile_name = nil
-    
-    if Dir.exist?(provisioning_dir)
-      Dir.glob("#{provisioning_dir}/*.mobileprovision").each do |profile|
-        begin
-          profile_content = `security cms -D -i "#{profile}" 2>/dev/null`
-          if profile_content.include?("com.Juhkang.Wit")
-            name_match = profile_content.match(/<key>Name<\/key>\s*<string>([^<]+)<\/string>/)
-            if name_match
-              actual_profile_name = name_match[1]
-              puts "✅ Bundle ID 일치하는 프로파일 발견: #{actual_profile_name}"
-              break
-            end
-          end
-        rescue
-          # 프로파일 읽기 실패 시 무시
-        end
-      end
-    end
-    
-    # 실제 프로파일 이름이 발견되면 사용
-    if actual_profile_name && actual_profile_name != provisioning_profile
-      puts "🔄 프로비저닝 프로파일 이름 자동 수정:"
-      puts "  기존: #{provisioning_profile}"
-      puts "  실제: #{actual_profile_name}"
-      provisioning_profile = actual_profile_name
-    end
-    
-    # 아카이브가 이미 존재하는지 확인 (여러 경로 시도)
-    possible_paths = [
-      "../../build/Wit.xcarchive",        # fastlane 디렉토리 기준 (가장 가능성 높음)
-      "../build/Wit.xcarchive",           # ios 디렉토리 기준
-      "build/Wit.xcarchive",              # ios/build  
-      File.expand_path("../../build/Wit.xcarchive", Dir.pwd),  # fastlane 기준 절대경로
-      File.expand_path("../build/Wit.xcarchive", Dir.pwd),     # ios 기준 절대경로
-      File.expand_path("build/Wit.xcarchive", Dir.pwd)         # 현재 디렉토리 기준
+    # 아카이브 파일 찾기
+    possible_archive_paths = [
+      "../../build/Wit.xcarchive",    # fastlane 디렉토리 기준
+      "../build/Wit.xcarchive",       # ios 디렉토리 기준
+      "build/Wit.xcarchive"           # ios/build
     ]
     
     archive_path = nil
-    possible_paths.each do |path|
+    possible_archive_paths.each do |path|
       if File.exist?(path)
         archive_path = path
+        puts "✅ 아카이브 파일 발견: #{archive_path}"
         break
       end
     end
     
-    if archive_path
-      puts "✅ 기존 아카이브 파일을 사용합니다: #{archive_path}"
-    else
+    unless archive_path
       puts "❌ 아카이브 파일을 찾을 수 없습니다!"
       puts "시도한 경로들:"
-      possible_paths.each { |path| puts "  - #{path}" }
-      puts "현재 작업 디렉토리: #{Dir.pwd}"
-      puts "디렉토리 내용:"
-      puts `ls -la`
-      puts "상위 디렉토리 내용:"
-      puts `ls -la ..`
+      possible_archive_paths.each { |path| puts "  - #{path}" }
       UI.user_error!("Archive file not found")
     end
     
-    # 코드 사이닝 인증서 자동 감지
-    puts "🔍 사용 가능한 코드 사이닝 인증서 검색 중..."
-    available_certificates = []
+    puts "📦 아카이브 크기: #{`du -sh '#{archive_path}'`.strip}"
+    puts "🚀 TestFlight 업로드 중..."
     
-    keychains = `security list-keychains -d user`.strip.split("\n").map { |k| k.strip.gsub('"', '') }
-    keychains.each do |keychain|
-      if File.exist?(keychain)
-        begin
-          identities = `security find-identity -v -p codesigning "#{keychain}" 2>/dev/null`.strip
-          unless identities.empty?
-            identities.split("\n").each do |line|
-              if line.match(/^\s*\d+\)\s+[A-F0-9]+\s+"([^"]+)"/)
-                cert_name = $1
-                available_certificates << cert_name if cert_name.include?("Distribution")
-              end
-            end
-          end
-        rescue
-          # 키체인 접근 실패 시 무시
-        end
-      end
-    end
-    
-    puts "🔍 발견된 Distribution 인증서:"
-    available_certificates.each { |cert| puts "  - #{cert}" }
-    
-    # 가장 적합한 인증서 선택 (정확한 이름 사용)
-    signing_certificate = if available_certificates.any? { |cert| cert.include?("Apple Distribution") }
-                           available_certificates.find { |cert| cert.include?("Apple Distribution") }
-                         elsif available_certificates.any? { |cert| cert.include?("iOS Distribution") }
-                           available_certificates.find { |cert| cert.include?("iOS Distribution") }
-                         elsif available_certificates.any?
-                           available_certificates.first
-                         else
-                           "Apple Distribution: Juhyun Kang (RV8F4J3AKL)"  # 로그에서 확인된 정확한 이름
-                         end
-    
-    puts "✅ 선택된 코드 사이닝 인증서: #{signing_certificate}"
-    
-    # Export Options 동적 생성 (signingCertificate 제거하여 자동 선택 허용)
-    export_options = {
-      method: "app-store-connect",
-      uploadBitcode: false,
-      uploadSymbols: true,
-      compileBitcode: false,
-      signingStyle: "manual",
-      stripSwiftSymbols: true,
-      teamID: "6S8WKQFV7D",
-      destination: "export",
-      provisioningProfiles: {
-        "com.Juhkang.Wit" => provisioning_profile
-      }
-      # signingCertificate 필드를 제거하여 xcodebuild가 자동으로 적절한 인증서 선택하도록 함
-    }
-    
-    puts "📝 참고: signingCertificate 필드를 제거하여 xcodebuild가 자동으로 인증서를 선택하도록 설정"
-    puts "🔍 감지된 인증서: #{signing_certificate}"
-    
-    puts "📝 Export Options:"
-    puts export_options
-    
-    # IPA 내보내기 (fastlane 디렉토리 기준으로 경로 수정)
-    output_directory = "../../build/ipa"
-    puts "📁 IPA 출력 디렉토리: #{output_directory}"
-    
-    # export_ipa 대신 xcodebuild -exportArchive 사용
-    puts "🚀 xcodebuild -exportArchive 실행 중..."
-    
-    # Export options plist 파일 생성
-    export_options_path = "/tmp/export_options.plist"
-    File.open(export_options_path, 'w') do |file|
-      file.write(export_options.to_plist)
-    end
-    
-    puts "📝 생성된 Export Options 파일: #{export_options_path}"
-    puts File.read(export_options_path)
-    
-    # xcodebuild -exportArchive 실행 (에러 처리 포함)
-    puts "🚀 xcodebuild -exportArchive 명령어 실행..."
-    puts "📋 명령어: xcodebuild -exportArchive -archivePath '#{archive_path}' -exportPath '#{output_directory}' -exportOptionsPlist '#{export_options_path}'"
-    
-    begin
-      sh "xcodebuild -exportArchive -archivePath '#{archive_path}' -exportPath '#{output_directory}' -exportOptionsPlist '#{export_options_path}'"
-    rescue => e
-      puts "❌ xcodebuild -exportArchive 실행 실패!"
-      puts "🔍 에러 정보: #{e.message}"
-      
-      puts ""
-      puts "🔍 코드 사이닝 문제 진단 중..."
-      
-      # 키체인 상태 확인
-      puts "📋 현재 키체인 목록:"
-      sh "security list-keychains -d user"
-      
-      # 코드 사이닝 인증서 확인
-      puts ""
-      puts "📋 사용 가능한 코드 사이닝 인증서:"
-      keychains = `security list-keychains -d user`.strip.split("\n").map { |k| k.strip.gsub('"', '') }
-      keychains.each do |keychain|
-        if File.exist?(keychain)
-          puts "  🔑 키체인: #{keychain}"
-          begin
-            identities = `security find-identity -v -p codesigning "#{keychain}" 2>/dev/null`.strip
-            if identities.empty?
-              puts "    ❌ 코드 사이닝 인증서 없음"
-            else
-              puts "    ✅ 발견된 인증서들:"
-              identities.split("\n").each { |line| puts "      #{line}" }
-            end
-          rescue
-            puts "    ❌ 키체인 접근 실패"
-          end
-        end
-      end
-      
-      # 프로비저닝 프로파일 확인 및 분석
-      puts ""
-      puts "📋 프로비저닝 프로파일 상세 확인:"
-      puts "  요구되는 프로파일: #{provisioning_profile}"
-      
-      provisioning_dir = File.expand_path("~/Library/MobileDevice/Provisioning Profiles")
-      if Dir.exist?(provisioning_dir)
-        profiles = Dir.glob("#{provisioning_dir}/*.mobileprovision")
-        puts "  📂 설치된 프로파일 개수: #{profiles.count}"
-        
-        profiles.each do |profile|
-          puts "    📄 #{File.basename(profile)}"
-          begin
-            # 프로파일 내용 분석
-            profile_content = `security cms -D -i "#{profile}" 2>/dev/null`
-            if profile_content.include?("com.Juhkang.Wit")
-              puts "      ✅ Bundle ID 일치: com.Juhkang.Wit"
-              name_match = profile_content.match(/<key>Name<\/key>\s*<string>([^<]+)<\/string>/)
-              if name_match
-                actual_name = name_match[1]
-                puts "      📝 실제 프로파일 이름: #{actual_name}"
-                if actual_name != provisioning_profile
-                  puts "      ⚠️  이름 불일치! 요구: #{provisioning_profile}, 실제: #{actual_name}"
-                end
-              end
-            end
-          rescue
-            puts "      ❌ 프로파일 분석 실패"
-          end
-        end
-      else
-        puts "  ❌ 프로비저닝 프로파일 디렉토리 없음"
-      end
-      
-      puts ""
-      puts "💡 해결 방안:"
-      puts "  1. 'iOS Distribution' 인증서가 키체인에 설치되어 있는지 확인"
-      puts "  2. '#{provisioning_profile}' 프로비저닝 프로파일이 올바르게 설치되어 있는지 확인"
-      puts "  3. 인증서와 프로비저닝 프로파일이 같은 Team ID를 사용하는지 확인"
-      puts "  4. 프로비저닝 프로파일이 App Store Connect 배포용인지 확인"
-      
-      raise e  # 원래 에러 다시 발생
-    end
-    
-    puts "✅ IPA 내보내기 완료!"
-  end
-  
-  desc "Upload to TestFlight"
-  lane :upload_testflight do |options|
-    changelog = options[:changelog] || ENV["CHANGELOG"] || "새로운 버전이 출시되었습니다."
-    
-    # IPA 파일 경로 확인 (환경 변수 우선 사용)
-    ipa_path = ENV["IPA_PATH"] || ENV["FINAL_IPA_PATH"]
-    
-    if ipa_path && File.exist?(ipa_path)
-      puts "✅ 환경 변수에서 IPA 경로 사용: #{ipa_path}"
-    else
-      puts "🔍 환경 변수에 IPA 경로가 없거나 파일이 존재하지 않습니다. 직접 검색 중..."
-      
-      possible_ipa_paths = [
-        "../../build/ipa/Wit.ipa",     # fastlane 디렉토리 기준
-        "../build/ipa/Wit.ipa",        # ios 디렉토리 기준
-        "../../build/ipa/*.ipa",       # 와일드카드 검색
-        "../build/ipa/*.ipa"
-      ]
-      
-      ipa_path = nil
-      possible_ipa_paths.each do |path|
-        if path.include?("*")
-          # 와일드카드 패턴 처리
-          Dir.glob(path).each do |file|
-            if File.exist?(file)
-              ipa_path = file
-              break
-            end
-          end
-        else
-          if File.exist?(path)
-            ipa_path = path
-            break
-          end
-        end
-        break if ipa_path
-      end
-      
-      unless ipa_path
-        puts "❌ IPA 파일을 찾을 수 없습니다!"
-        puts "시도한 경로들:"
-        possible_ipa_paths.each { |path| puts "  - #{path}" }
-        puts "환경 변수 IPA_PATH: #{ENV["IPA_PATH"]}"
-        puts "환경 변수 FINAL_IPA_PATH: #{ENV["FINAL_IPA_PATH"]}"
-        UI.user_error!("IPA file not found")
-      end
-    end
-    
-    puts "📦 IPA 파일 확인됨: #{ipa_path}"
-    puts "📝 변경사항: #{changelog}"
-    
-    # TestFlight 업로드
-    upload_to_testflight(
-      ipa: ipa_path,
+    # Fastlane pilot을 사용하여 아카이브에서 직접 업로드
+    pilot(
+      build_path: archive_path,  # .xcarchive 경로 직접 사용
       changelog: changelog,
       skip_waiting_for_build_processing: true,
-      api_key_path: ENV["APP_STORE_CONNECT_API_KEY_PATH"]
+      skip_submission: true,
+      distribute_external: false
     )
     
     puts "✅ TestFlight 업로드 완료!"
+    puts "🚀 ========================================"
   end
   
   desc "Complete build and upload process"
-  lane :release do |options|
-    build_and_export(options)
-    upload_testflight(options)
+  lane :release do
+    upload_archive_to_testflight
   end
 end
