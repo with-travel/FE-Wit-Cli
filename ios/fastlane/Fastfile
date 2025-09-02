@@ -16,8 +16,84 @@
 default_platform(:ios)
 
 platform :ios do
-  desc "Description of what the lane does"
-  lane :custom_lane do
-    # add actions here: https://docs.fastlane.tools/actions
+  desc "Build and export IPA for TestFlight"
+  lane :build_and_export do |options|
+    # 환경 변수에서 값 가져오기
+    version_name = options[:version_name] || ENV["VERSION_NAME"]
+    build_number = options[:build_number] || ENV["BUILD_NUMBER"]
+    provisioning_profile = options[:provisioning_profile] || ENV["PROVISIONING_PROFILE_SPECIFIER"]
+    
+    # 버전 정보 출력
+    puts "🔢 Version: #{version_name}"
+    puts "🔢 Build Number: #{build_number}"
+    puts "📱 Provisioning Profile: #{provisioning_profile}"
+    
+    # 아카이브가 이미 존재하는지 확인
+    archive_path = "../build/Wit.xcarchive"
+    if File.exist?(archive_path)
+      puts "✅ 기존 아카이브 파일을 사용합니다: #{archive_path}"
+    else
+      puts "❌ 아카이브 파일이 존재하지 않습니다: #{archive_path}"
+      puts "먼저 xcodebuild로 아카이브를 생성해주세요."
+      UI.user_error!("Archive file not found")
+    end
+    
+    # Export Options 동적 생성
+    export_options = {
+      method: "app-store-connect",
+      uploadBitcode: false,
+      uploadSymbols: true,
+      compileBitcode: false,
+      signingStyle: "manual",
+      stripSwiftSymbols: true,
+      teamID: "6S8WKQFV7D",
+      destination: "export",
+      provisioningProfiles: {
+        "com.Juhkang.Wit" => provisioning_profile
+      },
+      signingCertificate: "Apple Distribution"
+    }
+    
+    puts "📝 Export Options:"
+    puts export_options
+    
+    # IPA 내보내기
+    export_ipa(
+      archive_path: archive_path,
+      output_directory: "../build/ipa",
+      export_options: export_options
+    )
+    
+    puts "✅ IPA 내보내기 완료!"
+  end
+  
+  desc "Upload to TestFlight"
+  lane :upload_testflight do |options|
+    changelog = options[:changelog] || ENV["CHANGELOG"] || "새로운 버전이 출시되었습니다."
+    
+    # IPA 파일 경로 확인
+    ipa_path = "../build/ipa/Wit.ipa"
+    unless File.exist?(ipa_path)
+      UI.user_error!("IPA file not found at #{ipa_path}")
+    end
+    
+    puts "📦 IPA 파일 확인됨: #{ipa_path}"
+    puts "📝 변경사항: #{changelog}"
+    
+    # TestFlight 업로드
+    upload_to_testflight(
+      ipa: ipa_path,
+      changelog: changelog,
+      skip_waiting_for_build_processing: true,
+      api_key_path: ENV["APP_STORE_CONNECT_API_KEY_PATH"]
+    )
+    
+    puts "✅ TestFlight 업로드 완료!"
+  end
+  
+  desc "Complete build and upload process"
+  lane :release do |options|
+    build_and_export(options)
+    upload_testflight(options)
   end
 end
