@@ -207,14 +207,8 @@ jobs:
           gem install cocoapods -N
           cd ios && pod install --repo-update
 
-      - name: Import Code-Signing Certificates
-        uses: Apple-Actions/import-codesign-certs@v2
-        with:
-          p12-file-base64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
-          p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          keychain-password: ''
-
-      - name: Install Provisioning Profile
+      # Fastlane 사용 시 인증서/프로파일 설정은 Fastlane이 자동 처리
+      - name: Setup Fastlane Match (Alternative)
         env:
           PROVISIONING_PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
         run: |
@@ -340,124 +334,38 @@ jobs:
 
           echo "✅ 아카이브 빌드 완료!"
 
-      - name: Export IPA
+      - name: Setup App Store Connect API Key
         run: |
-          echo "📦 IPA 내보내기 시작..."
-          echo "아카이브 경로: build/Wit.xcarchive"
-          echo "내보내기 경로: build/ipa"
+          echo "🔑 App Store Connect API Key 설정 중..."
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}" | base64 --decode > ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8
+          echo "APP_STORE_CONNECT_API_KEY_PATH=$HOME/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8" >> $GITHUB_ENV
+          echo "✅ API Key 설정 완료"
 
-          # 아카이브 파일 존재 확인
-          if [ ! -d "build/Wit.xcarchive" ]; then
-            echo "❌ 아카이브 파일이 존재하지 않습니다!"
-            echo "build 디렉토리 내용:"
-            ls -la build/ || echo "build 디렉토리가 존재하지 않습니다"
-            exit 1
-          fi
-
-          echo "✅ 아카이브 파일 확인됨"
-
-          # 환경 변수 확인
-          echo "🔍 현재 환경 변수 확인:"
-          echo "  - PROVISIONING_PROFILE_SPECIFIER: ${{ env.PROVISIONING_PROFILE_SPECIFIER }}"
-          echo "  - 버전: ${{ steps.version.outputs.version_name }}"
-          echo "  - 빌드 번호: ${{ steps.version.outputs.build_number }}"
-
-                    # 동적 exportOptions.plist 생성
-          echo "📝 동적 Export Options 생성 중..."
-          echo "사용할 프로비저닝 프로파일: ${{ env.PROVISIONING_PROFILE_SPECIFIER }}"
-
-          # 키체인에서 실제 인증서 이름 확인
-          echo "🔍 설치된 인증서 확인 중..."
-          KEYCHAIN_PATH="/Users/runner/Library/Keychains/signing_temp.keychain-db"
-          if [ ! -f "$KEYCHAIN_PATH" ]; then
-            KEYCHAIN_PATH=$(security list-keychains -d user | grep -v "login.keychain" | head -1 | tr -d '"' | xargs)
-          fi
-
-          # 인증서 목록에서 Distribution 인증서 찾기
-          CERT_LIST=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" 2>/dev/null || true)
-          echo "인증서 목록:"
-          echo "$CERT_LIST"
-
-          # Distribution 인증서 이름 추출 (Apple Distribution 또는 iOS Distribution)
-          if echo "$CERT_LIST" | grep -q "Apple Distribution"; then
-            CERT_NAME="Apple Distribution"
-          elif echo "$CERT_LIST" | grep -q "iOS Distribution"; then
-            CERT_NAME="iOS Distribution"  
-          else
-            echo "❌ Distribution 인증서를 찾을 수 없습니다!"
-            echo "사용 가능한 인증서:"
-            echo "$CERT_LIST"
-            exit 1
-          fi
-
-          echo "✅ 사용할 인증서: $CERT_NAME"
-
-          # exportOptions.plist 동적 생성 (기존 파일 복사 후 수정)
-          PROFILE_NAME="${{ env.PROVISIONING_PROFILE_SPECIFIER }}"
-          echo "사용할 프로파일: $PROFILE_NAME"
-
-                    # 기존 파일을 복사
-          cp ios/exportOptions.plist ios/exportOptions-runtime.plist
+      - name: Export IPA with Fastlane
+        run: |
+          echo "📦 Fastlane을 사용한 IPA 내보내기 시작..."
+          cd ios
 
           # 환경 변수 설정
-          export PROFILE_NAME="$PROFILE_NAME"
-          export CERT_NAME="$CERT_NAME"
+          export VERSION_NAME="${{ steps.version.outputs.version_name }}"
+          export BUILD_NUMBER="${{ steps.version.outputs.build_number }}"
+          export PROVISIONING_PROFILE_SPECIFIER="${{ env.PROVISIONING_PROFILE_SPECIFIER }}"
+          export APP_STORE_CONNECT_API_KEY_PATH="${{ env.APP_STORE_CONNECT_API_KEY_PATH }}"
+          export APPLE_ID="${{ secrets.APPLE_ID }}"
 
-                              # 안전한 문자열 교체 (줄바꿈 완전 제거)
-          echo "프로파일 교체 중..."
+          echo "🔍 환경 변수 확인:"
+          echo "  - VERSION_NAME: $VERSION_NAME"
+          echo "  - BUILD_NUMBER: $BUILD_NUMBER"
+          echo "  - PROVISIONING_PROFILE_SPECIFIER: $PROVISIONING_PROFILE_SPECIFIER"
+          echo "  - API_KEY_PATH: $APP_STORE_CONNECT_API_KEY_PATH"
 
-          # 줄바꿈과 공백 완전 제거
-          CLEAN_PROFILE_NAME=$(echo "$PROFILE_NAME" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-          CLEAN_CERT_NAME=$(echo "$CERT_NAME" | tr -d '\n\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+          # Fastlane 실행
+          bundle exec fastlane build_and_export
 
-          echo "정리된 프로파일 이름: [$CLEAN_PROFILE_NAME]"
-          echo "정리된 인증서 이름: [$CLEAN_CERT_NAME]"
-
-          # 임시 파일에 정리된 이름 저장
-          printf '%s' "$CLEAN_PROFILE_NAME" > /tmp/clean_profile.txt
-          printf '%s' "$CLEAN_CERT_NAME" > /tmp/clean_cert.txt
-
-          # sed를 사용한 안전한 교체 (구분자 변경으로 특수문자 처리)
-          sed -i '' "s|PLACEHOLDER_PROFILE_NAME|$(cat /tmp/clean_profile.txt)|g" ios/exportOptions-runtime.plist
-          sed -i '' "s|Apple Distribution|$(cat /tmp/clean_cert.txt)|g" ios/exportOptions-runtime.plist
-
-          # 임시 파일 정리
-          rm -f /tmp/clean_profile.txt /tmp/clean_cert.txt
-
-          echo "✅ 프로파일 교체 완료: [$CLEAN_PROFILE_NAME]"
-          echo "✅ 인증서 교체 완료: [$CLEAN_CERT_NAME]"
-
-          echo "✅ Export Options 생성 완료"
-          echo "생성된 Export Options 내용:"
-          cat ios/exportOptions-runtime.plist
-
-          echo ""
-          echo "🔍 최종 검증:"
-          # XML에서 실제 값 추출하여 검증
-          PLIST_PROFILE=$(grep -A1 "com.Juhkang.Wit" ios/exportOptions-runtime.plist | grep "<string>" | sed 's/<[^>]*>//g' | tr -d ' \t\n\r')
-          PLIST_CERT=$(grep -A1 "signingCertificate" ios/exportOptions-runtime.plist | grep "<string>" | sed 's/<[^>]*>//g' | tr -d ' \t\n\r')
-
-          echo "추출된 프로파일: [$PLIST_PROFILE]"
-          echo "추출된 인증서: [$PLIST_CERT]"
-
-          # 줄바꿈 문자 확인
-          if echo "$PLIST_PROFILE" | grep -q $'\n'; then
-            echo "❌ 경고: 프로파일 이름에 줄바꿈이 포함되어 있습니다!"
-          fi
-
-          if echo "$PLIST_CERT" | grep -q $'\n'; then
-            echo "❌ 경고: 인증서 이름에 줄바꿈이 포함되어 있습니다!"
-          fi
-
-          echo "🚀 xcodebuild -exportArchive 시작..."
-          xcodebuild -exportArchive \
-            -archivePath build/Wit.xcarchive \
-            -exportPath build/ipa \
-            -exportOptionsPlist ios/exportOptions-runtime.plist
-
-          echo "✅ IPA 내보내기 완료!"
+          echo "✅ Fastlane IPA 내보내기 완료!"
           echo "생성된 IPA 파일:"
-          ls -la build/ipa/
+          ls -la ../build/ipa/
 
       - name: Download Release Notes
         uses: actions/download-artifact@v4
@@ -487,14 +395,23 @@ jobs:
           echo "✅ IPA 파일 확인됨: $IPA_PATH"
           echo "파일 크기: $(du -h "$IPA_PATH" | cut -f1)"
 
-      - name: Upload to TestFlight
-        uses: apple-actions/upload-testflight-build@v2
-        with:
-          api-key-id: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          api-issuer-id: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-          api-key-content: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
-          app-path: 'build/ipa/Wit.ipa'
-          changelog: ${{ steps.read_changelog.outputs.changelog }}
+      - name: Upload to TestFlight with Fastlane
+        run: |
+          echo "🚀 Fastlane을 사용한 TestFlight 업로드 시작..."
+          cd ios
+
+          # 환경 변수 설정
+          export CHANGELOG="${{ steps.read_changelog.outputs.changelog }}"
+          export APP_STORE_CONNECT_API_KEY_PATH="${{ env.APP_STORE_CONNECT_API_KEY_PATH }}"
+          export APPLE_ID="${{ secrets.APPLE_ID }}"
+
+          echo "📝 변경사항:"
+          echo "$CHANGELOG"
+
+          # Fastlane 실행
+          bundle exec fastlane upload_testflight
+
+          echo "✅ Fastlane TestFlight 업로드 완료!"
 
       - name: TestFlight Upload Complete
         run: |
