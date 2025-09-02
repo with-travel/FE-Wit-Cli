@@ -207,8 +207,15 @@ jobs:
           gem install cocoapods -N
           cd ios && pod install --repo-update
 
-      # Fastlane 사용 시 인증서/프로파일 설정은 Fastlane이 자동 처리
-      - name: Setup Fastlane Match (Alternative)
+      # 인증서 설치 (아카이브 빌드에 필요)
+      - name: Import Code Signing Certificate
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE_BASE64 }}
+          p12-password: ${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+
+      # 프로비저닝 프로파일 설치
+      - name: Setup Provisioning Profile
         env:
           PROVISIONING_PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
         run: |
@@ -276,43 +283,13 @@ jobs:
         run: |
           echo "🏗️ iOS 아카이브 빌드 시작..."
 
-          # 실제 생성된 키체인 찾기
-          echo "🔍 생성된 키체인 찾는 중..."
+          # Apple-Actions가 생성한 키체인 자동 감지
+          echo "🔍 설치된 키체인 확인 중..."
           security list-keychains -d user
 
-          # Apple-Actions가 생성한 키체인 경로 찾기 (로그에서 확인된 경로 사용)
-          KEYCHAIN_PATH="/Users/runner/Library/Keychains/signing_temp.keychain-db"
-
-          if [ ! -f "$KEYCHAIN_PATH" ]; then
-            echo "❌ signing_temp 키체인이 존재하지 않습니다!"
-            echo "사용 가능한 키체인 목록:"
-            security list-keychains -d user
-            
-            # 다른 가능한 키체인 찾기
-            ALTERNATIVE_KEYCHAIN=$(security list-keychains -d user | grep -v "login.keychain" | head -1 | tr -d '"' | xargs)
-            if [ -n "$ALTERNATIVE_KEYCHAIN" ] && [ -f "$ALTERNATIVE_KEYCHAIN" ]; then
-              KEYCHAIN_PATH="$ALTERNATIVE_KEYCHAIN"
-              echo "✅ 대안 키체인 사용: $KEYCHAIN_PATH"
-            else
-              echo "❌ 사용 가능한 키체인을 찾을 수 없습니다"
-              exit 1
-            fi
-          fi
-
-          echo "✅ 키체인 파일 확인됨: $KEYCHAIN_PATH"
-
-          # 키체인 설정
-          echo "🔐 키체인 설정 중..."
-          security list-keychains -d user -s "$KEYCHAIN_PATH" login.keychain
-          security default-keychain -s "$KEYCHAIN_PATH"
-          security unlock-keychain -p "" "$KEYCHAIN_PATH"
-          security set-keychain-settings -t 3600 -u "$KEYCHAIN_PATH"
-
-          echo "✅ 키체인 설정 완료"
-
-          # 코드 사이닝 ID 확인
+          # 코드 사이닝 ID 확인 (모든 키체인에서)
           echo "🔍 코드 사이닝 ID 확인 중..."
-          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+          security find-identity -v -p codesigning
 
           echo "📱 프로비저닝 프로파일: ${{ env.PROVISIONING_PROFILE_SPECIFIER }}"
           echo "📦 버전: ${{ steps.version.outputs.version_name }}"
