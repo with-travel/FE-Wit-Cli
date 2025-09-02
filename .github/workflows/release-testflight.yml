@@ -667,10 +667,41 @@ jobs:
 
           echo ""
           echo "📋 Fastlane 실행 전 최종 확인:"
-          echo "  - 아카이브 파일 존재: $([ -d "../build/Wit.xcarchive" ] && echo "✅ 예" || echo "❌ 아니오")"
-          if [ ! -d "../build/Wit.xcarchive" ]; then
-            echo "❌ 아카이브 파일이 존재하지 않습니다. Fastlane을 실행할 수 없습니다."
-            exit 1
+          echo "🔍 아카이브 파일 위치 디버깅:"
+          echo "  - 현재 디렉토리: $(pwd)"
+          echo "  - ../build/Wit.xcarchive 존재: $([ -d "../build/Wit.xcarchive" ] && echo "✅ 예" || echo "❌ 아니오")"
+          echo "  - build/Wit.xcarchive 존재: $([ -d "build/Wit.xcarchive" ] && echo "✅ 예" || echo "❌ 아니오")"
+          echo "  - 현재 디렉토리 내용:"
+          ls -la
+          echo "  - 상위 디렉토리 내용:"
+          ls -la ..
+          echo "  - build 디렉토리 확인:"
+          if [ -d "../build" ]; then
+            echo "    ✅ ../build 디렉토리 존재"
+            ls -la ../build/
+          else
+            echo "    ❌ ../build 디렉토리 없음"
+          fi
+          if [ -d "build" ]; then
+            echo "    ✅ ./build 디렉토리 존재"  
+            ls -la build/
+          else
+            echo "    ❌ ./build 디렉토리 없음"
+          fi
+
+          # 아카이브 파일 존재 확인 (유연하게)
+          archive_found=false
+          if [ -d "../build/Wit.xcarchive" ]; then
+            echo "  ✅ 아카이브 파일 발견: ../build/Wit.xcarchive"
+            archive_found=true
+          elif [ -d "build/Wit.xcarchive" ]; then
+            echo "  ✅ 아카이브 파일 발견: build/Wit.xcarchive"
+            archive_found=true
+          fi
+
+          if [ "$archive_found" = false ]; then
+            echo "❌ 아카이브 파일을 찾을 수 없습니다. Fastlane에서 자체 진단을 수행합니다."
+            echo "⚠️  Fastlane이 아카이브를 찾지 못하면 상세한 디버그 정보를 출력할 것입니다."
           fi
 
                     echo ""
