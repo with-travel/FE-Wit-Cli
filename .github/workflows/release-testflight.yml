@@ -2,7 +2,7 @@ name: Release to TestFlight
 
 on:
   pull_request_target:
-    types: [opened, ready_for_review]
+    types: [opened, ready_for_review, synchronize]
     branches:
       - 'release'
 
@@ -94,6 +94,7 @@ jobs:
 
       - name: Wait for CodeRabbit Summary
         id: detect_summary
+        continue-on-error: true
         timeout-minutes: 10
         run: |
           for i in {1..120}; do
@@ -635,6 +636,19 @@ jobs:
 
           echo "📦 ========================================"
 
+      - name: Download Release Notes
+        uses: actions/download-artifact@v4
+        with:
+          name: release-notes
+          path: .
+
+      - name: Read changelog file for TestFlight
+        id: read_changelog
+        run: |
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          cat release_notes.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      
       - name: 🚀 Fastlane TestFlight 직접 업로드 (간소화)
         run: |
           echo "🚀 ========================================"
@@ -645,12 +659,17 @@ jobs:
           cd ios
 
           echo "🔧 환경 변수 설정 중..."
-          export CHANGELOG="${{ steps.read_changelog.outputs.changelog }}"
+          # 여기서 read_changelog.outputs.changelog 는 위에서 이미 생성됨
+          CHANGELOG_CONTENT="${{ steps.read_changelog.outputs.changelog }}"
+          # 개행이 포함될 수 있으므로 파일로 전달 후 ENV로 내보내는 방식
+          echo "$CHANGELOG_CONTENT" > ../.changelog.txt
+          export CHANGELOG="$(cat ../.changelog.txt)"
+
           export APP_STORE_CONNECT_API_KEY_PATH="${{ env.APP_STORE_CONNECT_API_KEY_PATH }}"
           export APPLE_ID="${{ secrets.APPLE_ID }}"
 
           echo "🔍 설정된 환경 변수 확인:"
-          echo "  - CHANGELOG: ${CHANGELOG:0:50}..."
+          echo "  - CHANGELOG(preview 80): $(echo "$CHANGELOG" | head -c 80 | sed ':a;N;$!ba;s/\n/\\n/g')..."
           echo "  - API_KEY_PATH: $APP_STORE_CONNECT_API_KEY_PATH"
           echo "  - APPLE_ID: $APPLE_ID"
 
@@ -673,31 +692,19 @@ jobs:
           echo "🚀 Fastlane upload_archive_to_testflight 실행 중..."
           echo "🚀 ========================================"
 
-          # Fastlane 실행 전 안전 확인
           if ! bundle exec fastlane --version > /dev/null 2>&1; then
             echo "❌ Fastlane 실행 불가! Bundle install 재실행..."
             bundle install
           fi
 
-          # 아카이브에서 직접 TestFlight로 업로드
+          # 업로드 (Fastfile이 CHANGELOG / API KEY PATH를 참조)
           bundle exec fastlane upload_archive_to_testflight
 
           echo "🚀 ========================================"
           echo "✅ TestFlight 업로드 완료!"
           echo "🚀 ========================================"
 
-      - name: Download Release Notes
-        uses: actions/download-artifact@v4
-        with:
-          name: release-notes
-          path: .
-
-      - name: Read changelog file for TestFlight
-        id: read_changelog
-        run: |
-          echo "changelog<<EOF" >> $GITHUB_OUTPUT
-          cat release_notes.txt >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+      
 
       - name: 🎉 배포 완료 로그
         run: |
@@ -714,6 +721,21 @@ jobs:
           echo "  2. 내부 테스터에게 알림 발송"
           echo "  3. 테스트 진행 후 App Store 출시 준비"
           echo "🎉 ========================================"
+
+      - name: Upload iOS build artifacts (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-artifacts-${{ github.run_id }}
+          path: |
+            build/Wit.xcarchive
+            build/Wit.ipa
+            ios/fastlane/report.xml
+            /Users/runner/Library/Logs/gym
+            /Users/runner/Library/Logs/fastlane
+          if-no-files-found: ignore
+          retention-days: 7
+
 
   # ===============================================================
   # Job 4: Update README
