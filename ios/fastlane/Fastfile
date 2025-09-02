@@ -83,11 +83,20 @@ platform :ios do
     output_directory = "../../build/ipa"
     puts "📁 IPA 출력 디렉토리: #{output_directory}"
     
-    export_ipa(
-      archive_path: archive_path,
-      output_directory: output_directory,
-      export_options: export_options
-    )
+    # export_ipa 대신 xcodebuild -exportArchive 사용
+    puts "🚀 xcodebuild -exportArchive 실행 중..."
+    
+    # Export options plist 파일 생성
+    export_options_path = "/tmp/export_options.plist"
+    File.open(export_options_path, 'w') do |file|
+      file.write(export_options.to_plist)
+    end
+    
+    puts "📝 생성된 Export Options 파일: #{export_options_path}"
+    puts File.read(export_options_path)
+    
+    # xcodebuild -exportArchive 실행
+    sh "xcodebuild -exportArchive -archivePath '#{archive_path}' -exportPath '#{output_directory}' -exportOptionsPlist '#{export_options_path}'"
     
     puts "✅ IPA 내보내기 완료!"
   end
@@ -96,25 +105,48 @@ platform :ios do
   lane :upload_testflight do |options|
     changelog = options[:changelog] || ENV["CHANGELOG"] || "새로운 버전이 출시되었습니다."
     
-    # IPA 파일 경로 확인 (fastlane 디렉토리 기준)
-    possible_ipa_paths = [
-      "../../build/ipa/Wit.ipa",     # fastlane 디렉토리 기준
-      "../build/ipa/Wit.ipa"         # ios 디렉토리 기준
-    ]
+    # IPA 파일 경로 확인 (환경 변수 우선 사용)
+    ipa_path = ENV["IPA_PATH"] || ENV["FINAL_IPA_PATH"]
     
-    ipa_path = nil
-    possible_ipa_paths.each do |path|
-      if File.exist?(path)
-        ipa_path = path
-        break
+    if ipa_path && File.exist?(ipa_path)
+      puts "✅ 환경 변수에서 IPA 경로 사용: #{ipa_path}"
+    else
+      puts "🔍 환경 변수에 IPA 경로가 없거나 파일이 존재하지 않습니다. 직접 검색 중..."
+      
+      possible_ipa_paths = [
+        "../../build/ipa/Wit.ipa",     # fastlane 디렉토리 기준
+        "../build/ipa/Wit.ipa",        # ios 디렉토리 기준
+        "../../build/ipa/*.ipa",       # 와일드카드 검색
+        "../build/ipa/*.ipa"
+      ]
+      
+      ipa_path = nil
+      possible_ipa_paths.each do |path|
+        if path.include?("*")
+          # 와일드카드 패턴 처리
+          Dir.glob(path).each do |file|
+            if File.exist?(file)
+              ipa_path = file
+              break
+            end
+          end
+        else
+          if File.exist?(path)
+            ipa_path = path
+            break
+          end
+        end
+        break if ipa_path
       end
-    end
-    
-    unless ipa_path
-      puts "❌ IPA 파일을 찾을 수 없습니다!"
-      puts "시도한 경로들:"
-      possible_ipa_paths.each { |path| puts "  - #{path}" }
-      UI.user_error!("IPA file not found")
+      
+      unless ipa_path
+        puts "❌ IPA 파일을 찾을 수 없습니다!"
+        puts "시도한 경로들:"
+        possible_ipa_paths.each { |path| puts "  - #{path}" }
+        puts "환경 변수 IPA_PATH: #{ENV["IPA_PATH"]}"
+        puts "환경 변수 FINAL_IPA_PATH: #{ENV["FINAL_IPA_PATH"]}"
+        UI.user_error!("IPA file not found")
+      end
     end
     
     puts "📦 IPA 파일 확인됨: #{ipa_path}"
