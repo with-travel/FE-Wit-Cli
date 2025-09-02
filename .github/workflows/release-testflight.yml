@@ -2,7 +2,7 @@ name: Release to TestFlight
 
 on:
   pull_request_target:
-    types: [opened, ready_for_review, synchronize]
+    types: [opened, ready_for_review]
     branches:
       - 'release'
 
