@@ -28,13 +28,33 @@ platform :ios do
     puts "🔢 Build Number: #{build_number}"
     puts "📱 Provisioning Profile: #{provisioning_profile}"
     
-    # 아카이브가 이미 존재하는지 확인
-    archive_path = "../build/Wit.xcarchive"
-    if File.exist?(archive_path)
+    # 아카이브가 이미 존재하는지 확인 (여러 경로 시도)
+    possible_paths = [
+      "../build/Wit.xcarchive",           # 프로젝트 루트/build
+      "build/Wit.xcarchive",              # ios/build  
+      File.expand_path("../build/Wit.xcarchive", Dir.pwd),  # 절대경로
+      File.expand_path("build/Wit.xcarchive", Dir.pwd)      # ios 기준 절대경로
+    ]
+    
+    archive_path = nil
+    possible_paths.each do |path|
+      if File.exist?(path)
+        archive_path = path
+        break
+      end
+    end
+    
+    if archive_path
       puts "✅ 기존 아카이브 파일을 사용합니다: #{archive_path}"
     else
-      puts "❌ 아카이브 파일이 존재하지 않습니다: #{archive_path}"
-      puts "먼저 xcodebuild로 아카이브를 생성해주세요."
+      puts "❌ 아카이브 파일을 찾을 수 없습니다!"
+      puts "시도한 경로들:"
+      possible_paths.each { |path| puts "  - #{path}" }
+      puts "현재 작업 디렉토리: #{Dir.pwd}"
+      puts "디렉토리 내용:"
+      puts `ls -la`
+      puts "상위 디렉토리 내용:"
+      puts `ls -la ..`
       UI.user_error!("Archive file not found")
     end
     
