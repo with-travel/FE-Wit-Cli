@@ -49,16 +49,33 @@ platform :ios do
     #    - output_name: Wit.ipa
     ipa_path = build_ios_app(
       archive_path: archive_path,
-      skip_archive: true,                 # 이미 아카이브가 있으니 재-아카이브 건너뜀
+      skip_archive: true,                 # 이미 아카이브 있음
       export_method: "app-store",
+      configuration: "Release",           # ✅ Release 강제
+      workspace: "./Wit.xcworkspace",     # (자동 감지되지만 명시해도 안전)
+      scheme: "Wit",
+    
+      # 내보내기 단계에서 프로비저닝/서명 정보를 확실히 지정
+      export_options: {
+        method: "app-store",
+        signingStyle: "manual",
+        signingCertificate: "Apple Distribution",
+        provisioningProfiles: {
+          "com.Juhkang.Wit" => (ENV["PROVISIONING_PROFILE_SPECIFIER"] || "Wit CLI Distribution")
+        }
+      },
+
+      # 불필요한 재탐지/패키지 처리 끄기(속도+안정)
+      skip_profile_detection: true,
+      skip_package_dependencies_resolution: true,
+    
+      # 내보내기 시 프로필/서명 관련 업데이트 허용(필요시)
+      export_xcargs: "-allowProvisioningUpdates",
+    
       output_directory: "../build",
-      output_name: "Wit",
-      # 필요 시 export_options를 명시적으로:
-      # export_options: {
-      #   method: "app-store",
-      #   signingStyle: "manual"
-      # }
+      output_name: "Wit"
     )
+
 
     # 4) TestFlight 업로드
     upload_to_testflight(
