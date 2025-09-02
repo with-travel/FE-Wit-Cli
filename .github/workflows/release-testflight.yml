@@ -178,66 +178,163 @@ jobs:
     needs: prepare-release
     runs-on: macos-14
     steps:
-      - name: Checkout release branch
+      - name: 📋 Job 시작 로그
+        run: |
+          echo "🚀 ========================================"
+          echo "🚀 Deploy to TestFlight Job 시작"
+          echo "🚀 ========================================"
+          echo "📅 시작 시간: $(date)"
+          echo "🔧 Runner OS: ${{ runner.os }}"
+          echo "💻 Runner Architecture: ${{ runner.arch }}"
+          echo "📦 필요한 버전 정보: ${{ needs.prepare-release.outputs.new_version }}"
+          echo "🚀 ========================================"
+      - name: 📥 소스 코드 체크아웃
         uses: actions/checkout@v4
         with:
           ref: release
 
-      - name: Setup Node.js
+      - name: ✅ 소스 코드 체크아웃 완료
+        run: |
+          echo "✅ ========================================"
+          echo "✅ 소스 코드 체크아웃 완료"
+          echo "✅ ========================================"
+          echo "📂 현재 디렉토리: $(pwd)"
+          echo "📁 프로젝트 파일 확인:"
+          ls -la | head -10
+          echo "📦 package.json 버전 확인:"
+          node -p "require('./package.json').version"
+          echo "✅ ========================================"
+
+      - name: 🔧 Node.js 설정
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: 'npm'
 
-      - name: Install JS dependencies
-        run: npm ci
+      - name: ✅ Node.js 설정 완료
+        run: |
+          echo "✅ ========================================"
+          echo "✅ Node.js 설정 완료"
+          echo "✅ ========================================"
+          echo "📦 Node.js 버전: $(node --version)"
+          echo "📦 npm 버전: $(npm --version)"
+          echo "✅ ========================================"
 
-      - name: Select Xcode 16
+      - name: 📦 JavaScript 의존성 설치
+        run: |
+          echo "📦 ========================================"
+          echo "📦 JavaScript 의존성 설치 시작"
+          echo "📦 ========================================"
+          npm ci
+          echo "✅ JavaScript 의존성 설치 완료"
+          echo "📊 설치된 패키지 수: $(ls node_modules | wc -l)"
+          echo "📦 ========================================"
+
+      - name: 🍎 Xcode 설정
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: '16.1'
 
-      - name: Setup Ruby
+      - name: ✅ Xcode 설정 완료
+        run: |
+          echo "✅ ========================================"
+          echo "✅ Xcode 설정 완료"
+          echo "✅ ========================================"
+          echo "🍎 Xcode 버전: $(xcodebuild -version)"
+          echo "🍎 사용 가능한 SDK:"
+          xcodebuild -showsdks | grep iOS
+          echo "✅ ========================================"
+
+      - name: 💎 Ruby 설정
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.2.2'
 
-      - name: Install CocoaPods
+      - name: ✅ Ruby 설정 완료
         run: |
+          echo "✅ ========================================"
+          echo "✅ Ruby 설정 완료"
+          echo "✅ ========================================"
+          echo "💎 Ruby 버전: $(ruby --version)"
+          echo "💎 Bundler 버전: $(bundle --version)"
+          echo "✅ ========================================"
+
+      - name: 🏗️ CocoaPods 설치
+        run: |
+          echo "🏗️ ========================================"
+          echo "🏗️ CocoaPods 설치 시작"
+          echo "🏗️ ========================================"
           gem install cocoapods -N
+          echo "📦 CocoaPods 버전: $(pod --version)"
+          echo "📂 iOS 디렉토리로 이동하여 Pod 설치..."
           cd ios && pod install --repo-update
+          echo "✅ CocoaPods 설치 완료"
+          echo "📊 설치된 Pod 수:"
+          ls ios/Pods | grep -v "Headers\|Target" | wc -l
+          echo "🏗️ ========================================"
 
       # 인증서 설치 (아카이브 빌드에 필요)
+      - name: 🔐 Apple Distribution 인증서 설치
+        run: |
+          echo "🔐 ========================================"
+          echo "🔐 Apple Distribution 인증서 설치 시작"
+          echo "🔐 ========================================"
+          echo "📋 인증서 설치 전 키체인 상태:"
+          security list-keychains -d user
+          echo "🔐 ========================================"
+
       - name: Import Code Signing Certificate
         uses: apple-actions/import-codesign-certs@v3
         with:
           p12-file-base64: ${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE_BASE64 }}
           p12-password: ${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD }}
 
+      - name: ✅ 인증서 설치 완료 확인
+        run: |
+          echo "✅ ========================================"
+          echo "✅ Apple Distribution 인증서 설치 완료"
+          echo "✅ ========================================"
+          echo "🔍 설치된 키체인 목록:"
+          security list-keychains -d user
+          echo ""
+          echo "🔍 설치된 코드 사이닝 인증서:"
+          security find-identity -v -p codesigning
+          echo ""
+          echo "🔍 기본 키체인:"
+          security default-keychain
+          echo "✅ ========================================"
+
       # 프로비저닝 프로파일 설치
-      - name: Setup Provisioning Profile
+      - name: 📱 프로비저닝 프로파일 설치
         env:
           PROVISIONING_PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
         run: |
-          echo "📱 프로비저닝 프로파일 설치 시작..."
+          echo "📱 ========================================"
+          echo "📱 프로비저닝 프로파일 설치 시작"
+          echo "📱 ========================================"
+
+          echo "📂 프로파일 디렉토리 생성 중..."
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
           echo "✅ 프로비저닝 프로파일 디렉토리 생성 완료"
 
           echo "🔍 Base64 프로파일 디코딩 중..."
           echo "$PROVISIONING_PROFILE_BASE64" | base64 --decode > profile.mobileprovision
           echo "✅ 프로파일 디코딩 완료"
+          echo "📊 디코딩된 파일 크기: $(du -h profile.mobileprovision | cut -f1)"
 
           echo "📋 프로파일 정보 추출 중..."
           PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< $(security cms -D -i profile.mobileprovision))
           PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' /dev/stdin <<< $(security cms -D -i profile.mobileprovision))
 
-          echo "📋 프로파일 정보:"
+          echo "📋 추출된 프로파일 정보:"
           echo "  - UUID: $PROFILE_UUID"
           echo "  - Name: $PROFILE_NAME"
 
           # CLI 프로젝트용 프로파일인지 확인
           if [[ "$PROFILE_NAME" == *"expo"* ]]; then
+            echo "❌ ========================================"
             echo "❌ 에러: Expo 프로파일이 감지되었습니다!"
+            echo "❌ ========================================"
             echo "현재 프로파일: $PROFILE_NAME"
             echo ""
             echo "해결 방법:"
@@ -246,6 +343,7 @@ jobs:
             echo "3. GitHub Secrets의 APPLE_PROVISIONING_PROFILE_BASE64 업데이트"
             echo ""
             echo "CLI 프로젝트에는 Expo 프로파일을 사용할 수 없습니다."
+            echo "❌ ========================================"
             exit 1
           fi
 
@@ -256,46 +354,76 @@ jobs:
           echo "✅ 프로비저닝 프로파일 설치 완료!"
           echo "🔍 설치된 프로파일 확인:"
           ls -la ~/Library/MobileDevice/Provisioning\ Profiles/
+          echo "📱 ========================================"
 
-      - name: Get Version Info
+      - name: 📊 버전 정보 수집
         id: version
         run: |
+          echo "📊 ========================================"
+          echo "📊 버전 정보 수집 시작"
+          echo "📊 ========================================"
+
           VERSION=$(node -p "require('./package.json').version")
           BUILD_NUMBER=$(git rev-list --count HEAD)
+
+          echo "📦 수집된 버전 정보:"
+          echo "  - 버전명: $VERSION"
+          echo "  - 빌드 번호: $BUILD_NUMBER"
+          echo "  - Git 커밋 수: $(git rev-list --count HEAD)"
+          echo "  - 현재 브랜치: $(git branch --show-current)"
+          echo "  - 최신 커밋: $(git log -1 --format='%h %s')"
+
           echo "version_name=$VERSION" >> $GITHUB_OUTPUT
           echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
+          echo "📊 ========================================"
 
-      - name: Debug Keychain and Environment
+      - name: 🔍 빌드 환경 디버깅
         run: |
-          echo "🔍 환경 디버깅 시작..."
-          echo "Runner temp directory: ${{ runner.temp }}"
-          echo "임시 디렉토리 내용:"
-          ls -la ${{ runner.temp }}/
+          echo "🔍 ========================================"
+          echo "🔍 빌드 환경 디버깅 시작"
+          echo "🔍 ========================================"
+          echo "🖥️ Runner 정보:"
+          echo "  - Temp 디렉토리: ${{ runner.temp }}"
+          echo "  - 작업 디렉토리: $(pwd)"
+          echo "  - 디스크 사용량: $(df -h . | tail -1)"
+
           echo ""
-          echo "현재 키체인 목록:"
+          echo "🔐 키체인 상태:"
+          echo "  - 현재 키체인 목록:"
           security list-keychains -d user
-          echo ""
-          echo "기본 키체인:"
+          echo "  - 기본 키체인:"
           security default-keychain
+
           echo ""
+          echo "📱 프로비저닝 프로파일 상태:"
+          echo "  - 환경 변수: $PROVISIONING_PROFILE_SPECIFIER"
+          echo "  - 설치된 프로파일 수: $(ls ~/Library/MobileDevice/Provisioning\ Profiles/ | wc -l)"
 
-      - name: Build and Archive iOS
+          echo "🔍 ========================================"
+
+      - name: 🏗️ iOS 아카이브 빌드
         run: |
-          echo "🏗️ iOS 아카이브 빌드 시작..."
+          echo "🏗️ ========================================"
+          echo "🏗️ iOS 아카이브 빌드 시작"
+          echo "🏗️ ========================================"
 
-          # Apple-Actions가 생성한 키체인 자동 감지
-          echo "🔍 설치된 키체인 확인 중..."
+          echo "🔍 빌드 전 환경 확인:"
+          echo "  - 설치된 키체인:"
           security list-keychains -d user
-
-          # 코드 사이닝 ID 확인 (모든 키체인에서)
-          echo "🔍 코드 사이닝 ID 확인 중..."
+          echo "  - 코드 사이닝 인증서:"
           security find-identity -v -p codesigning
 
-          echo "📱 프로비저닝 프로파일: ${{ env.PROVISIONING_PROFILE_SPECIFIER }}"
-          echo "📦 버전: ${{ steps.version.outputs.version_name }}"
-          echo "🔢 빌드 번호: ${{ steps.version.outputs.build_number }}"
+          echo ""
+          echo "📋 빌드 설정 정보:"
+          echo "  - 프로비저닝 프로파일: ${{ env.PROVISIONING_PROFILE_SPECIFIER }}"
+          echo "  - 앱 버전: ${{ steps.version.outputs.version_name }}"
+          echo "  - 빌드 번호: ${{ steps.version.outputs.build_number }}"
+          echo "  - 아카이브 경로: build/Wit.xcarchive"
 
-          echo "🚀 xcodebuild 아카이브 시작..."
+          echo ""
+          echo "🚀 xcodebuild 아카이브 명령 실행 중..."
+          echo "🏗️ ========================================"
+
           xcodebuild \
             -workspace ios/Wit.xcworkspace \
             -scheme Wit \
@@ -309,40 +437,95 @@ jobs:
             CODE_SIGN_IDENTITY="Apple Distribution" \
             PROVISIONING_PROFILE_SPECIFIER="${{ env.PROVISIONING_PROFILE_SPECIFIER }}"
 
+          echo "🏗️ ========================================"
           echo "✅ 아카이브 빌드 완료!"
+          echo "🏗️ ========================================"
+          echo "📁 생성된 아카이브 확인:"
+          if [ -d "build/Wit.xcarchive" ]; then
+            echo "  ✅ 아카이브 파일 존재함"
+            echo "  📊 아카이브 크기: $(du -sh build/Wit.xcarchive | cut -f1)"
+            echo "  📂 아카이브 내용:"
+            ls -la build/Wit.xcarchive/
+          else
+            echo "  ❌ 아카이브 파일이 생성되지 않았습니다!"
+            exit 1
+          fi
+          echo "🏗️ ========================================"
 
-      - name: Setup App Store Connect API Key
+      - name: 🔑 App Store Connect API Key 설정
         run: |
-          echo "🔑 App Store Connect API Key 설정 중..."
+          echo "🔑 ========================================"
+          echo "🔑 App Store Connect API Key 설정 시작"
+          echo "🔑 ========================================"
+
+          echo "📂 API Key 디렉토리 생성 중..."
           mkdir -p ~/.appstoreconnect/private_keys
-          echo "${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}" | base64 --decode > ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8
-          echo "APP_STORE_CONNECT_API_KEY_PATH=$HOME/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8" >> $GITHUB_ENV
-          echo "✅ API Key 설정 완료"
 
-      - name: Export IPA with Fastlane
+          echo "🔓 API Key 디코딩 및 저장 중..."
+          echo "${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}" | base64 --decode > ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8
+
+          API_KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8"
+          echo "APP_STORE_CONNECT_API_KEY_PATH=$API_KEY_PATH" >> $GITHUB_ENV
+
+          echo "✅ API Key 설정 완료!"
+          echo "📁 API Key 파일 확인:"
+          echo "  - 경로: $API_KEY_PATH"
+          echo "  - 파일 존재: $([ -f "$API_KEY_PATH" ] && echo "✅ 예" || echo "❌ 아니오")"
+          echo "  - 파일 크기: $([ -f "$API_KEY_PATH" ] && du -h "$API_KEY_PATH" | cut -f1 || echo "N/A")"
+          echo "🔑 ========================================"
+
+      - name: 📦 Fastlane IPA 내보내기
         run: |
-          echo "📦 Fastlane을 사용한 IPA 내보내기 시작..."
+          echo "📦 ========================================"
+          echo "📦 Fastlane IPA 내보내기 시작"
+          echo "📦 ========================================"
+
+          echo "📂 iOS 디렉토리로 이동 중..."
           cd ios
 
-          # 환경 변수 설정
+          echo "🔧 환경 변수 설정 중..."
           export VERSION_NAME="${{ steps.version.outputs.version_name }}"
           export BUILD_NUMBER="${{ steps.version.outputs.build_number }}"
           export PROVISIONING_PROFILE_SPECIFIER="${{ env.PROVISIONING_PROFILE_SPECIFIER }}"
           export APP_STORE_CONNECT_API_KEY_PATH="${{ env.APP_STORE_CONNECT_API_KEY_PATH }}"
           export APPLE_ID="${{ secrets.APPLE_ID }}"
 
-          echo "🔍 환경 변수 확인:"
+          echo "🔍 설정된 환경 변수 확인:"
           echo "  - VERSION_NAME: $VERSION_NAME"
           echo "  - BUILD_NUMBER: $BUILD_NUMBER"
           echo "  - PROVISIONING_PROFILE_SPECIFIER: $PROVISIONING_PROFILE_SPECIFIER"
           echo "  - API_KEY_PATH: $APP_STORE_CONNECT_API_KEY_PATH"
+          echo "  - APPLE_ID: $APPLE_ID"
 
-          # Fastlane 실행
+          echo ""
+          echo "📋 Fastlane 준비 상태 확인:"
+          echo "  - Fastlane 버전: $(bundle exec fastlane --version | head -1)"
+          echo "  - 아카이브 파일 존재: $([ -d "../build/Wit.xcarchive" ] && echo "✅ 예" || echo "❌ 아니오")"
+
+          echo ""
+          echo "🚀 Fastlane build_and_export 실행 중..."
+          echo "📦 ========================================"
+
           bundle exec fastlane build_and_export
 
+          echo "📦 ========================================"
           echo "✅ Fastlane IPA 내보내기 완료!"
-          echo "생성된 IPA 파일:"
-          ls -la ../build/ipa/
+          echo "📦 ========================================"
+          echo "📁 생성된 IPA 파일 확인:"
+          if [ -d "../build/ipa" ]; then
+            echo "  ✅ IPA 디렉토리 존재함"
+            echo "  📊 디렉토리 내용:"
+            ls -la ../build/ipa/
+            if [ -f "../build/ipa/Wit.ipa" ]; then
+              echo "  ✅ IPA 파일 생성 성공"
+              echo "  📊 IPA 파일 크기: $(du -h ../build/ipa/Wit.ipa | cut -f1)"
+            else
+              echo "  ❌ IPA 파일이 생성되지 않았습니다!"
+            fi
+          else
+            echo "  ❌ IPA 디렉토리가 생성되지 않았습니다!"
+          fi
+          echo "📦 ========================================"
 
       - name: Download Release Notes
         uses: actions/download-artifact@v4
@@ -372,28 +555,56 @@ jobs:
           echo "✅ IPA 파일 확인됨: $IPA_PATH"
           echo "파일 크기: $(du -h "$IPA_PATH" | cut -f1)"
 
-      - name: Upload to TestFlight with Fastlane
+      - name: 🚀 Fastlane TestFlight 업로드
         run: |
-          echo "🚀 Fastlane을 사용한 TestFlight 업로드 시작..."
+          echo "🚀 ========================================"
+          echo "🚀 Fastlane TestFlight 업로드 시작"
+          echo "🚀 ========================================"
+
+          echo "📂 iOS 디렉토리로 이동 중..."
           cd ios
 
-          # 환경 변수 설정
+          echo "🔧 환경 변수 설정 중..."
           export CHANGELOG="${{ steps.read_changelog.outputs.changelog }}"
           export APP_STORE_CONNECT_API_KEY_PATH="${{ env.APP_STORE_CONNECT_API_KEY_PATH }}"
           export APPLE_ID="${{ secrets.APPLE_ID }}"
 
-          echo "📝 변경사항:"
-          echo "$CHANGELOG"
+          echo "🔍 업로드 준비 상태 확인:"
+          echo "  - IPA 파일 존재: $([ -f "../build/ipa/Wit.ipa" ] && echo "✅ 예" || echo "❌ 아니오")"
+          echo "  - API Key 파일 존재: $([ -f "$APP_STORE_CONNECT_API_KEY_PATH" ] && echo "✅ 예" || echo "❌ 아니오")"
+          echo "  - Apple ID: $APPLE_ID"
 
-          # Fastlane 실행
+          echo ""
+          echo "📝 릴리즈 노트 (변경사항):"
+          echo "----------------------------------------"
+          echo "$CHANGELOG"
+          echo "----------------------------------------"
+
+          echo ""
+          echo "🚀 Fastlane upload_testflight 실행 중..."
+          echo "🚀 ========================================"
+
           bundle exec fastlane upload_testflight
 
+          echo "🚀 ========================================"
           echo "✅ Fastlane TestFlight 업로드 완료!"
+          echo "🚀 ========================================"
 
-      - name: TestFlight Upload Complete
+      - name: 🎉 배포 완료 로그
         run: |
-          echo "✅ TestFlight 업로드 완료!"
-          echo "앱이 TestFlight에 성공적으로 업로드되었습니다."
+          echo "🎉 ========================================"
+          echo "🎉 TestFlight 배포 완료!"
+          echo "🎉 ========================================"
+          echo "📱 앱이 TestFlight에 성공적으로 업로드되었습니다."
+          echo "📅 배포 완료 시간: $(date)"
+          echo "📦 배포된 버전: ${{ steps.version.outputs.version_name }}"
+          echo "🔢 빌드 번호: ${{ steps.version.outputs.build_number }}"
+          echo ""
+          echo "📋 다음 단계:"
+          echo "  1. TestFlight에서 빌드 처리 완료 대기"
+          echo "  2. 내부 테스터에게 알림 발송"
+          echo "  3. 테스트 진행 후 App Store 출시 준비"
+          echo "🎉 ========================================"
 
   # ===============================================================
   # Job 4: Update README
