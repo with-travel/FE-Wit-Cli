@@ -13,58 +13,67 @@
 # Uncomment the line if you want fastlane to automatically update itself
 # update_fastlane
 
+# ios/fastlane/Fastfile
+
 default_platform(:ios)
 
 platform :ios do
-  desc "Upload archive directly to TestFlight (simplified)"
+  desc "Upload archive directly to TestFlight (from .xcarchive => .ipa => upload)"
   lane :upload_archive_to_testflight do |options|
-    # 환경 변수에서 값 가져오기
+    # 1) 변경사항(릴리즈 노트)
     changelog = options[:changelog] || ENV["CHANGELOG"] || "새로운 버전이 출시되었습니다."
-    
+
     puts "🚀 ========================================"
     puts "🚀 TestFlight 직접 업로드 시작"
     puts "🚀 ========================================"
     puts "📝 변경사항: #{changelog}"
-    
-    # 아카이브 파일 찾기
+
+    # 2) .xcarchive 찾기
     possible_archive_paths = [
-      "../../build/Wit.xcarchive",    # fastlane 디렉토리 기준
-      "../build/Wit.xcarchive",       # ios 디렉토리 기준
-      "build/Wit.xcarchive"           # ios/build
+      "../../build/Wit.xcarchive",  # fastlane 디렉토리 기준
+      "../build/Wit.xcarchive",     # ios 디렉토리 기준
+      "build/Wit.xcarchive"         # ios/build
     ]
-    
-    archive_path = nil
-    possible_archive_paths.each do |path|
-      if File.exist?(path)
-        archive_path = path
-        puts "✅ 아카이브 파일 발견: #{archive_path}"
-        break
-      end
-    end
-    
+
+    archive_path = possible_archive_paths.find { |p| File.exist?(p) }
     unless archive_path
       puts "❌ 아카이브 파일을 찾을 수 없습니다!"
-      puts "시도한 경로들:"
-      possible_archive_paths.each { |path| puts "  - #{path}" }
+      possible_archive_paths.each { |p| puts "  - #{p}" }
       UI.user_error!("Archive file not found")
     end
-    
+    puts "✅ 아카이브 파일 발견: #{archive_path}"
     puts "📦 아카이브 크기: #{`du -sh '#{archive_path}'`.strip}"
-    puts "🚀 TestFlight 업로드 중..."
-    
-    # Fastlane pilot을 사용하여 아카이브에서 직접 업로드
-    pilot(
-      build_path: archive_path,  # .xcarchive 경로 직접 사용
+
+    # 3) .ipa 추출 (기존 아카이브 재활용)
+    #    - output_directory: ../build (ios/fastlane 기준으로 한 단계 위의 build)
+    #    - output_name: Wit.ipa
+    ipa_path = build_ios_app(
+      archive_path: archive_path,
+      skip_archive: true,                 # 이미 아카이브가 있으니 재-아카이브 건너뜀
+      export_method: "app-store",
+      output_directory: "../build",
+      output_name: "Wit",
+      # 필요 시 export_options를 명시적으로:
+      # export_options: {
+      #   method: "app-store",
+      #   signingStyle: "manual"
+      # }
+    )
+
+    # 4) TestFlight 업로드
+    upload_to_testflight(
+      ipa: ipa_path,
       changelog: changelog,
       skip_waiting_for_build_processing: true,
       skip_submission: true,
-      distribute_external: false
+      distribute_external: false,
+      api_key_path: ENV["APP_STORE_CONNECT_API_KEY_PATH"] # 🔐 명시적으로 전달
     )
-    
+
     puts "✅ TestFlight 업로드 완료!"
     puts "🚀 ========================================"
   end
-  
+
   desc "Complete build and upload process"
   lane :release do
     upload_archive_to_testflight
