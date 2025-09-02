@@ -745,10 +745,31 @@ jobs:
           fi
 
           echo ""
-          echo "🔍 ~/Library/MobileDevice/Provisioning\ Profiles/ 확인:"
+          echo "🔍 ~/Library/MobileDevice/Provisioning\ Profiles/ 상세 확인:"
           if [ -d ~/Library/MobileDevice/Provisioning\ Profiles/ ]; then
             echo "  📂 설치된 프로비저닝 프로파일 개수: $(ls ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision 2>/dev/null | wc -l)"
             ls -la ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision 2>/dev/null | head -5 || echo "    ❌ 프로비저닝 프로파일 없음"
+            
+            echo ""
+            echo "  🔍 각 프로파일의 실제 이름 확인:"
+            for profile in ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision; do
+              if [ -f "$profile" ]; then
+                echo "    📄 파일: $(basename "$profile")"
+                profile_name=$(security cms -D -i "$profile" 2>/dev/null | grep -A 1 "<key>Name</key>" | grep "<string>" | sed 's/.*<string>\(.*\)<\/string>.*/\1/' | head -1)
+                bundle_id=$(security cms -D -i "$profile" 2>/dev/null | grep -A 1 "application-identifier" | grep "<string>" | sed 's/.*<string>[^.]*\.\(.*\)<\/string>.*/\1/' | head -1)
+                if [ -n "$profile_name" ]; then
+                  echo "      📝 프로파일 이름: $profile_name"
+                fi
+                if [ -n "$bundle_id" ]; then
+                  echo "      📦 Bundle ID: $bundle_id"
+                fi
+                if [[ "$bundle_id" == "com.Juhkang.Wit" ]]; then
+                  echo "      ✅ Bundle ID 일치!"
+                  echo "      🎯 이 프로파일을 사용해야 합니다: $profile_name"
+                fi
+                echo ""
+              fi
+            done
           else
             echo "  ❌ 프로비저닝 프로파일 디렉토리 없음"
           fi

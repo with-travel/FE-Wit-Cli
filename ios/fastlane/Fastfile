@@ -28,6 +28,37 @@ platform :ios do
     puts "🔢 Build Number: #{build_number}"
     puts "📱 Provisioning Profile: #{provisioning_profile}"
     
+    # 실제 프로비저닝 프로파일 이름 확인 및 자동 감지
+    puts "🔍 실제 설치된 프로비저닝 프로파일 확인 중..."
+    provisioning_dir = File.expand_path("~/Library/MobileDevice/Provisioning Profiles")
+    actual_profile_name = nil
+    
+    if Dir.exist?(provisioning_dir)
+      Dir.glob("#{provisioning_dir}/*.mobileprovision").each do |profile|
+        begin
+          profile_content = `security cms -D -i "#{profile}" 2>/dev/null`
+          if profile_content.include?("com.Juhkang.Wit")
+            name_match = profile_content.match(/<key>Name<\/key>\s*<string>([^<]+)<\/string>/)
+            if name_match
+              actual_profile_name = name_match[1]
+              puts "✅ Bundle ID 일치하는 프로파일 발견: #{actual_profile_name}"
+              break
+            end
+          end
+        rescue
+          # 프로파일 읽기 실패 시 무시
+        end
+      end
+    end
+    
+    # 실제 프로파일 이름이 발견되면 사용
+    if actual_profile_name && actual_profile_name != provisioning_profile
+      puts "🔄 프로비저닝 프로파일 이름 자동 수정:"
+      puts "  기존: #{provisioning_profile}"
+      puts "  실제: #{actual_profile_name}"
+      provisioning_profile = actual_profile_name
+    end
+    
     # 아카이브가 이미 존재하는지 확인 (여러 경로 시도)
     possible_paths = [
       "../../build/Wit.xcarchive",        # fastlane 디렉토리 기준 (가장 가능성 높음)
@@ -86,20 +117,20 @@ platform :ios do
     puts "🔍 발견된 Distribution 인증서:"
     available_certificates.each { |cert| puts "  - #{cert}" }
     
-    # 가장 적합한 인증서 선택
+    # 가장 적합한 인증서 선택 (정확한 이름 사용)
     signing_certificate = if available_certificates.any? { |cert| cert.include?("Apple Distribution") }
-                           "Apple Distribution"
+                           available_certificates.find { |cert| cert.include?("Apple Distribution") }
                          elsif available_certificates.any? { |cert| cert.include?("iOS Distribution") }
-                           "iOS Distribution"
+                           available_certificates.find { |cert| cert.include?("iOS Distribution") }
                          elsif available_certificates.any?
                            available_certificates.first
                          else
-                           "Apple Distribution"  # 기본값
+                           "Apple Distribution: Juhyun Kang (RV8F4J3AKL)"  # 로그에서 확인된 정확한 이름
                          end
     
     puts "✅ 선택된 코드 사이닝 인증서: #{signing_certificate}"
     
-    # Export Options 동적 생성
+    # Export Options 동적 생성 (signingCertificate 제거하여 자동 선택 허용)
     export_options = {
       method: "app-store-connect",
       uploadBitcode: false,
@@ -111,9 +142,12 @@ platform :ios do
       destination: "export",
       provisioningProfiles: {
         "com.Juhkang.Wit" => provisioning_profile
-      },
-      signingCertificate: signing_certificate
+      }
+      # signingCertificate 필드를 제거하여 xcodebuild가 자동으로 적절한 인증서 선택하도록 함
     }
+    
+    puts "📝 참고: signingCertificate 필드를 제거하여 xcodebuild가 자동으로 인증서를 선택하도록 설정"
+    puts "🔍 감지된 인증서: #{signing_certificate}"
     
     puts "📝 Export Options:"
     puts export_options
@@ -172,17 +206,35 @@ platform :ios do
         end
       end
       
-      # 프로비저닝 프로파일 확인
+      # 프로비저닝 프로파일 확인 및 분석
       puts ""
-      puts "📋 프로비저닝 프로파일 확인:"
+      puts "📋 프로비저닝 프로파일 상세 확인:"
       puts "  요구되는 프로파일: #{provisioning_profile}"
       
       provisioning_dir = File.expand_path("~/Library/MobileDevice/Provisioning Profiles")
       if Dir.exist?(provisioning_dir)
         profiles = Dir.glob("#{provisioning_dir}/*.mobileprovision")
         puts "  📂 설치된 프로파일 개수: #{profiles.count}"
-        profiles.first(3).each do |profile|
+        
+        profiles.each do |profile|
           puts "    📄 #{File.basename(profile)}"
+          begin
+            # 프로파일 내용 분석
+            profile_content = `security cms -D -i "#{profile}" 2>/dev/null`
+            if profile_content.include?("com.Juhkang.Wit")
+              puts "      ✅ Bundle ID 일치: com.Juhkang.Wit"
+              name_match = profile_content.match(/<key>Name<\/key>\s*<string>([^<]+)<\/string>/)
+              if name_match
+                actual_name = name_match[1]
+                puts "      📝 실제 프로파일 이름: #{actual_name}"
+                if actual_name != provisioning_profile
+                  puts "      ⚠️  이름 불일치! 요구: #{provisioning_profile}, 실제: #{actual_name}"
+                end
+              end
+            end
+          rescue
+            puts "      ❌ 프로파일 분석 실패"
+          end
         end
       else
         puts "  ❌ 프로비저닝 프로파일 디렉토리 없음"
