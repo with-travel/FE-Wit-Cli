@@ -1,6 +1,16 @@
 {
   "releases": [
     {
+      "version": "1.0.39",
+      "timestamp": "2025-09-02T20:22:30Z",
+      "pr_number": "86",
+      "changes": {
+        "General": [
+          "PR #86의 변경사항이 반영되었습니다."
+        ]
+      }
+    },
+    {
       "version": "1.0.38",
       "timestamp": "2025-09-02T20:00:18Z",
       "pr_number": "85",
