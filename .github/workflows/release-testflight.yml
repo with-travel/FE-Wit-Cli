@@ -773,18 +773,41 @@ jobs:
 
       - name: Update README.md
         run: |
+          VERSION="${{ steps.version.outputs.latest_version }}"
           TIMESTAMP=$(date +'%Y-%m-%d')
-          VERSION_TEXT="v${{ steps.version.outputs.latest_version }} ($TIMESTAMP)"
+          VERSION_TEXT="v${VERSION} (${TIMESTAMP})"
 
-          echo "🔍 현재 README.md 버전 라인 확인:"
-          grep -n "최신 버전" README.md || echo "버전 라인을 찾을 수 없습니다."
+          echo "🔍 CHANGELOG.json에서 최신 릴리즈 정보 추출 중..."
 
-          # CHANGELOG.md에서 최신 변경사항 추출
-          echo "📋 최신 변경사항 추출 중..."
-          LATEST_CHANGES=$(awk "/## v${{ steps.version.outputs.latest_version }}/{flag=1; next}/## v/{flag=0}flag" CHANGELOG.md | sed '/^$/d' | head -10)
+          # jq 설치 확인
+          if ! command -v jq &> /dev/null; then
+            echo "📦 jq 설치 중..."
+            sudo apt-get update && sudo apt-get install -y jq
+          fi
 
-          # README.md 전체 업데이트
-          cat > README_temp.md << 'EOF'
+          # CHANGELOG.json에서 최신 릴리즈 정보 추출
+          if [ -f "CHANGELOG.json" ]; then
+            LATEST_RELEASE=$(jq '.releases[0]' CHANGELOG.json)
+            
+            if [ "$LATEST_RELEASE" != "null" ]; then
+              # 최신 변경사항을 마크다운 형식으로 변환
+              LATEST_CHANGES=$(echo "$LATEST_RELEASE" | jq -r '
+                .changes | to_entries[] | 
+                "**" + (.key | ascii_upcase) + "**\n" + 
+                (.value | map("- " + .) | join("\n")) + "\n"
+              ')
+              echo "✅ CHANGELOG.json에서 변경사항 추출 완료"
+            else
+              LATEST_CHANGES="- 새로운 버전이 출시되었습니다."
+              echo "⚠️ CHANGELOG.json에서 릴리즈 정보를 찾을 수 없어 기본 메시지 사용"
+            fi
+          else
+            LATEST_CHANGES="- 새로운 버전이 출시되었습니다."
+            echo "⚠️ CHANGELOG.json 파일이 없어 기본 메시지 사용"
+          fi
+
+          # README.md 업데이트
+          cat > README.md << EOF
           # Wit App
 
           여행 친구 찾기
@@ -810,18 +833,38 @@ jobs:
           <!-- [이전 변경사항 보기](PREVIOUS_CHANGES.md) -->
           EOF
 
-          # 환경변수 치환
-          envsubst < README_temp.md > README.md
-          rm README_temp.md
+          echo "✅ README.md 업데이트 완료"
 
-          echo "✅ README.md 업데이트 완료:"
-          head -15 README.md
+      - name: Create PREVIOUS_CHANGES.md
+        run: |
+          echo "📄 PREVIOUS_CHANGES.md 생성 중..."
+
+          if [ -f "CHANGELOG.json" ]; then
+            # CHANGELOG.json에서 최신 버전을 제외한 이전 버전들로 PREVIOUS_CHANGES.md 생성
+            jq -r '
+              "# 이전 변경사항\n\n이 파일은 최신 버전을 제외한 모든 이전 버전의 변경사항을 포함합니다.\n\n" +
+              (.releases[1:] | map(
+                "## v" + .version + " (" + .timestamp[0:10] + ")\n" +
+                (.changes | to_entries | map(
+                  "### " + (.key | ascii_upcase) + "\n" + 
+                  (.value | map("- " + .) | join("\n"))
+                ) | join("\n\n")) + "\n\n---\n"
+              ) | join("\n"))
+            ' CHANGELOG.json > PREVIOUS_CHANGES.md
+            
+            echo "✅ PREVIOUS_CHANGES.md 생성 완료"
+          else
+            echo "# 이전 변경사항" > PREVIOUS_CHANGES.md
+            echo "" >> PREVIOUS_CHANGES.md
+            echo "아직 이전 변경사항이 없습니다." >> PREVIOUS_CHANGES.md
+            echo "⚠️ CHANGELOG.json이 없어 기본 PREVIOUS_CHANGES.md 생성"
+          fi
 
       - name: Commit and push README update
         run: |
-          git add README.md
+          git add README.md PREVIOUS_CHANGES.md
           if ! git diff --staged --quiet; then
-            git commit -m "docs: update README with version v${{ steps.version.outputs.latest_version }} [skip ci]"
+            git commit -m "docs: update README and PREVIOUS_CHANGES with version v${{ steps.version.outputs.latest_version }} [skip ci]"
             git push origin main
           else
             echo "No README changes to commit."
