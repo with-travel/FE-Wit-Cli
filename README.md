@@ -20,5 +20,3 @@
 - Expo -> Cli로 변경되었습니다.
 
 ---
-
-<!-- [이전 변경사항 보기](PREVIOUS_CHANGES.md) -->
