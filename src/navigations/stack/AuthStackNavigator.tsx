@@ -16,9 +16,11 @@ import { useForm, FormProvider } from 'react-hook-form';
 import { Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Feather from '@react-native-vector-icons/feather';
+import AuthServerLoginScreen from '@/screens/auth/signin/AuthServerLoginScreen';
 
 export type AuthStackParamList = {
   [authNavigations.AUTH_HOME]: undefined;
+  [authNavigations.AUTH_SERVER_LOGIN]: undefined;
   [authNavigations.AUTH_SIGNUP_FLOW_STACK]: undefined;
   [authNavigations.AUTH_TRAVEL_FORM_STACK]: undefined;
 };
@@ -166,6 +168,15 @@ function AuthStackNavigator() {
           component={AuthHomeScreen}
           options={{
             headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name={authNavigations.AUTH_SERVER_LOGIN}
+          component={AuthServerLoginScreen}
+          options={{
+            headerShown: true,
+            headerTitle: '로그인',
+            headerBackButtonDisplayMode: 'minimal',
           }}
         />
         <Stack.Screen
