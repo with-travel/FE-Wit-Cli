@@ -13,38 +13,22 @@
 # Uncomment the line if you want fastlane to automatically update itself
 # update_fastlane
 
-# This file contains the fastlane.tools configuration
-# You can find the documentation at https://docs.fastlane.tools
-#
-# For a list of all available actions, check out
-#
-#     https://docs.fastlane.tools/actions
-#
-# For a list of all available plugins, check out
-#
-#     https://docs.fastlane.tools/plugins/available-plugins
-#
-
-# Uncomment the line if you want fastlane to automatically update itself
-# update_fastlane
-
-# ios/fastlane/Fastfile
-
 default_platform(:ios)
 
 platform :ios do
-  desc "Upload archive directly to TestFlight (exportArchive only)"
+  desc "Upload archive directly to TestFlight (Flutter 방식 적용)"
   lane :upload_archive_to_testflight do |options|
     changelog = options[:changelog] || ENV["CHANGELOG"] || "새로운 버전이 출시되었습니다."
 
     puts "🚀 ========================================"
-    puts "🚀 TestFlight 직접 업로드 (exportArchive)"
+    puts "🚀 TestFlight 직접 업로드
     puts "🚀 ========================================"
     puts "📝 변경사항: #{changelog}"
 
+    # 아카이브 파일 찾기
     possible_archive_paths = [
       "../../build/Wit.xcarchive",
-      "../build/Wit.xcarchive",
+      "../build/Wit.xcarchive", 
       "build/Wit.xcarchive"
     ]
     archive_path = possible_archive_paths.find { |p| File.exist?(p) }
@@ -52,50 +36,27 @@ platform :ios do
     puts "✅ 아카이브: #{archive_path}"
     puts "📦 크기: #{`du -sh '#{archive_path}'`.strip}"
 
-    # Export 설정
-    export_dir = "../build" # 루트/build에 .ipa 나오도록
-    sh "mkdir -p '#{export_dir}'"
+    # App Store Connect API Key 설정
+    api_key = app_store_connect_api_key(
+      key_id: ENV["APP_STORE_CONNECT_API_KEY_ID"],
+      issuer_id: ENV["APP_STORE_CONNECT_ISSUER_ID"], 
+      key_filepath: ENV["APP_STORE_CONNECT_API_KEY_PATH"]
+    )
 
-    export_plist = "#{export_dir}/ExportOptions.plist"
-    profile_name = ENV["PROVISIONING_PROFILE_SPECIFIER"] || "Wit CLI Distribution"
-    team_id = "6S8WKQFV7D" # Appfile에 있는 팀 ID와 동일
+    puts "🔑 API Key 설정 완료"
 
-    File.write(export_plist, <<~PLIST)
-      <?xml version="1.0" encoding="UTF-8"?>
-      <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-      <plist version="1.0">
-      <dict>
-        <key>method</key><string>app-store</string>
-        <key>signingStyle</key><string>manual</string>
-        <key>teamID</key><string>#{team_id}</string>
-        <key>provisioningProfiles</key>
-        <dict>
-          <key>com.Juhkang.Wit</key><string>#{profile_name}</string>
-        </dict>
-        <key>uploadSymbols</key><true/>
-        <key>uploadBitcode</key><false/>
-      </dict>
-      </plist>
-    PLIST
-
-    # 🔁 빌드 없이 "exportArchive"만 수행
-    sh %Q[xcodebuild -exportArchive \
-      -archivePath "#{archive_path}" \
-      -exportPath "#{export_dir}" \
-      -exportOptionsPlist "#{export_plist}" \
-      -allowProvisioningUpdates]
-
-    ipa_path = Dir["#{export_dir}/*.ipa"].first
-    UI.user_error!("IPA not found after export") unless ipa_path
-    puts "✅ IPA 생성: #{ipa_path}"
-
-    upload_to_testflight(
-      ipa: ipa_path,
+    # 🎯 핵심: pilot을 사용하여 .xcarchive에서 직접 TestFlight 업로드
+    # Flutter 워크플로우와 동일한 방식
+    puts "🚀 TestFlight 업로드 시작..."
+    pilot(
+      api_key: api_key,
+      build_path: archive_path,  # .xcarchive 경로 직접 전달
       changelog: changelog,
-      skip_waiting_for_build_processing: true,
-      skip_submission: true,
+      skip_waiting_for_build_processing: true,  # 빠른 업로드
       distribute_external: false,
-      api_key_path: ENV["APP_STORE_CONNECT_API_KEY_PATH"]
+      notify_external_testers: false,
+      uses_non_exempt_encryption: false,  # 암호화 규정 자동 설정
+      skip_submission: true
     )
 
     puts "✅ TestFlight 업로드 완료!"
