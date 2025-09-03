@@ -30,7 +30,7 @@ function AuthHomeScreen({ navigation }: AuthScreenProps) {
   };
 
   const handleServerLogin = () => {
-    //서버 로그인 화면으로 이동
+    navigation.navigate(authNavigations.AUTH_SERVER_LOGIN);
   };
 
   const handleServerSignup = () => {
