@@ -775,8 +775,47 @@ jobs:
         run: |
           TIMESTAMP=$(date +'%Y-%m-%d')
           VERSION_TEXT="v${{ steps.version.outputs.latest_version }} ($TIMESTAMP)"
-          # README에서 버전 라인을 찾아 업데이트 (다양한 형식 지원)
-          sed -i -E "s/^(##\\s*(최신|Current|Recent|Latest)?\\s*버전\\s*:\\s*).*/\\1${VERSION_TEXT}/i" README.md
+
+          echo "🔍 현재 README.md 버전 라인 확인:"
+          grep -n "최신 버전" README.md || echo "버전 라인을 찾을 수 없습니다."
+
+          # CHANGELOG.md에서 최신 변경사항 추출
+          echo "📋 최신 변경사항 추출 중..."
+          LATEST_CHANGES=$(awk "/## v${{ steps.version.outputs.latest_version }}/{flag=1; next}/## v/{flag=0}flag" CHANGELOG.md | sed '/^$/d' | head -10)
+
+          # README.md 전체 업데이트
+          cat > README_temp.md << 'EOF'
+          # Wit App
+
+          여행 친구 찾기
+
+          ---
+
+          ## 최신 버전: ${VERSION_TEXT}
+
+          ### 변경 사항
+
+          ${LATEST_CHANGES}
+
+          ### 이전 변경 사항
+
+          전체 변경 내역은 [CHANGELOG.md](CHANGELOG.md)에서 확인하실 수 있습니다.
+
+          **DOCUMENTATION**
+
+          - Expo -> Cli로 변경되었습니다.
+
+          ---
+
+          <!-- [이전 변경사항 보기](PREVIOUS_CHANGES.md) -->
+          EOF
+
+          # 환경변수 치환
+          envsubst < README_temp.md > README.md
+          rm README_temp.md
+
+          echo "✅ README.md 업데이트 완료:"
+          head -15 README.md
 
       - name: Commit and push README update
         run: |
