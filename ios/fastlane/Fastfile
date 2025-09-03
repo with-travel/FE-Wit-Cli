@@ -45,24 +45,75 @@ platform :ios do
 
     puts "🔑 API Key 설정 완료"
 
-    # 🎯 1단계: .xcarchive에서 .ipa 생성
+    # 🎯 1단계: 아카이브 유효성 검사
+    puts "🔍 아카이브 유효성 검사 중..."
+    
+    # 아카이브 구조 확인
+    if File.exist?("#{archive_path}/Products/Applications")
+      puts "✅ 아카이브 구조 정상: Products/Applications 존재"
+    else
+      puts "❌ 아카이브 구조 이상: Products/Applications 없음"
+      puts "📁 아카이브 내용:"
+      puts `ls -la '#{archive_path}'`
+      UI.user_error!("Invalid archive structure")
+    end
+    
+    # Info.plist 확인
+    info_plist_path = "#{archive_path}/Info.plist"
+    if File.exist?(info_plist_path)
+      puts "✅ Info.plist 존재"
+    else
+      puts "❌ Info.plist 없음"
+      UI.user_error!("Archive Info.plist not found")
+    end
+    
+    # 🎯 2단계: .xcarchive에서 .ipa 생성 (향상된 설정)
     puts "📦 .xcarchive에서 .ipa 생성 중..."
-    ipa_path = gym(
-      archive_path: archive_path,
-      skip_build_archive: true,  # 아카이브는 이미 존재하므로 빌드 건너뛰기
-      export_method: "app-store",
-      output_directory: "../../build/ipa",
-      output_name: "Wit.ipa",
-      export_options: {
-        method: "app-store",
-        signingStyle: "automatic",
-        teamID: ENV["APPLE_TEAM_ID"],
-        uploadSymbols: true,
-        uploadBitcode: false,
-        compileBitcode: false,
-        stripSwiftSymbols: true
-      }
-    )
+    
+    begin
+      ipa_path = gym(
+        archive_path: archive_path,
+        skip_build_archive: true,  # 아카이브는 이미 존재하므로 빌드 건너뛰기
+        export_method: "app-store",
+        output_directory: "../../build/ipa",
+        output_name: "Wit.ipa",
+        export_options: {
+          method: "app-store",
+          teamID: ENV["APPLE_TEAM_ID"],
+          uploadSymbols: true,
+          uploadBitcode: false,
+          compileBitcode: false,
+          stripSwiftSymbols: true,
+          signingStyle: "automatic"
+        },
+        # 추가 안정성 옵션
+        clean: false,
+        silent: false,
+        skip_profile_detection: false
+      )
+    rescue => e
+      puts "❌ IPA 생성 실패: #{e.message}"
+      
+      # 디버깅 정보 출력
+      puts "🔍 디버깅 정보:"
+      puts "  - 아카이브 경로: #{archive_path}"
+      puts "  - 아카이브 크기: #{`du -sh '#{archive_path}'`.strip}"
+      puts "  - 작업 디렉토리: #{Dir.pwd}"
+      
+      # 재시도 (다른 방법으로)
+      puts "🔄 다른 방법으로 재시도..."
+      ipa_path = gym(
+        archive_path: archive_path,
+        skip_build_archive: true,
+        export_method: "app-store",
+        output_directory: "../../build/ipa",
+        output_name: "Wit.ipa",
+        export_options: {
+          method: "app-store",
+          teamID: ENV["APPLE_TEAM_ID"]
+        }
+      )
+    end
     
     puts "✅ IPA 생성 완료: #{ipa_path}"
 
