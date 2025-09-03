@@ -21,7 +21,7 @@ platform :ios do
     changelog = options[:changelog] || ENV["CHANGELOG"] || "새로운 버전이 출시되었습니다."
 
     puts "🚀 ========================================"
-    puts "🚀 TestFlight 직접 업로드
+    puts "🚀 TestFlight 직접 업로드 (2단계 방식)"
     puts "🚀 ========================================"
     puts "📝 변경사항: #{changelog}"
 
@@ -45,12 +45,32 @@ platform :ios do
 
     puts "🔑 API Key 설정 완료"
 
-    # 🎯 핵심: pilot을 사용하여 .xcarchive에서 직접 TestFlight 업로드
-    # Flutter 워크플로우와 동일한 방식
+    # 🎯 1단계: .xcarchive에서 .ipa 생성
+    puts "📦 .xcarchive에서 .ipa 생성 중..."
+    ipa_path = gym(
+      archive_path: archive_path,
+      skip_build_archive: true,  # 아카이브는 이미 존재하므로 빌드 건너뛰기
+      export_method: "app-store",
+      output_directory: "../../build/ipa",
+      output_name: "Wit.ipa",
+      export_options: {
+        method: "app-store",
+        signingStyle: "automatic",
+        teamID: ENV["APPLE_TEAM_ID"],
+        uploadSymbols: true,
+        uploadBitcode: false,
+        compileBitcode: false,
+        stripSwiftSymbols: true
+      }
+    )
+    
+    puts "✅ IPA 생성 완료: #{ipa_path}"
+
+    # 🎯 2단계: .ipa 파일을 TestFlight에 업로드
     puts "🚀 TestFlight 업로드 시작..."
     pilot(
       api_key: api_key,
-      build_path: archive_path,  # .xcarchive 경로 직접 전달
+      ipa: ipa_path,  # .ipa 파일 경로 전달
       changelog: changelog,
       skip_waiting_for_build_processing: true,  # 빠른 업로드
       distribute_external: false,
