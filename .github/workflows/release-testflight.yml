@@ -648,7 +648,7 @@ jobs:
           echo "changelog<<EOF" >> $GITHUB_OUTPUT
           cat release_notes.txt >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
-      
+
       - name: 🚀 Fastlane TestFlight 직접 업로드 (간소화)
         run: |
           echo "🚀 ========================================"
@@ -669,7 +669,7 @@ jobs:
           export APPLE_ID="${{ secrets.APPLE_ID }}"
 
           echo "🔍 설정된 환경 변수 확인:"
-          echo "  - CHANGELOG(preview 80): $(echo "$CHANGELOG" | head -c 80 | sed ':a;N;$!ba;s/\n/\\n/g')..."
+          echo "  - CHANGELOG(preview 80): $(echo "$CHANGELOG" | head -c 80 | tr '\n' ' ')..."
           echo "  - API_KEY_PATH: $APP_STORE_CONNECT_API_KEY_PATH"
           echo "  - APPLE_ID: $APPLE_ID"
 
@@ -704,8 +704,6 @@ jobs:
           echo "✅ TestFlight 업로드 완료!"
           echo "🚀 ========================================"
 
-      
-
       - name: 🎉 배포 완료 로그
         run: |
           echo "🎉 ========================================"
@@ -735,7 +733,6 @@ jobs:
             /Users/runner/Library/Logs/fastlane
           if-no-files-found: ignore
           retention-days: 7
-
 
   # ===============================================================
   # Job 4: Update README
