@@ -67,52 +67,66 @@ platform :ios do
       UI.user_error!("Archive Info.plist not found")
     end
     
-    # 🎯 2단계: .xcarchive에서 .ipa 생성 (향상된 설정)
-    puts "📦 .xcarchive에서 .ipa 생성 중..."
+    # 🎯 2단계: xcodebuild로 직접 IPA 내보내기 (gym 대신)
+    puts "📦 xcodebuild로 직접 IPA 내보내기 중..."
     
+    # Export Options 생성
+    export_options = {
+      method: "app-store",
+      teamID: ENV["APPLE_TEAM_ID"],
+      uploadSymbols: true,
+      uploadBitcode: false,
+      compileBitcode: false,
+      stripSwiftSymbols: true,
+      signingStyle: "automatic"
+    }
+    
+    # ExportOptions.plist 생성
+    export_plist_path = "../../build/ExportOptions.plist"
+    File.open(export_plist_path, 'w') do |file|
+      file.write(export_options.to_plist)
+    end
+    
+    # IPA 출력 디렉토리 생성
+    sh "mkdir -p ../../build/ipa"
+    
+    # xcodebuild -exportArchive 실행
     begin
-      ipa_path = gym(
-        archive_path: archive_path,
-        skip_build_archive: true,  # 아카이브는 이미 존재하므로 빌드 건너뛰기
-        export_method: "app-store",
-        output_directory: "../../build/ipa",
-        output_name: "Wit.ipa",
-        export_options: {
-          method: "app-store",
-          teamID: ENV["APPLE_TEAM_ID"],
-          uploadSymbols: true,
-          uploadBitcode: false,
-          compileBitcode: false,
-          stripSwiftSymbols: true,
-          signingStyle: "automatic"
-        },
-        # 추가 안정성 옵션
-        clean: false,
-        silent: false,
-        skip_profile_detection: false
-      )
-    rescue => e
-      puts "❌ IPA 생성 실패: #{e.message}"
+      sh %Q[
+        xcodebuild -exportArchive \
+          -archivePath "#{archive_path}" \
+          -exportPath "../../build/ipa" \
+          -exportOptionsPlist "#{export_plist_path}" \
+          -allowProvisioningUpdates
+      ]
       
-      # 디버깅 정보 출력
+      # 생성된 IPA 파일 찾기
+      ipa_files = Dir.glob("../../build/ipa/*.ipa")
+      if ipa_files.empty?
+        UI.user_error!("No IPA file found after export")
+      end
+      
+      ipa_path = ipa_files.first
+      puts "✅ IPA 생성 완료: #{ipa_path}"
+      
+    rescue => e
+      puts "❌ xcodebuild exportArchive 실패: #{e.message}"
+      
+      # 디버깅 정보
       puts "🔍 디버깅 정보:"
       puts "  - 아카이브 경로: #{archive_path}"
-      puts "  - 아카이브 크기: #{`du -sh '#{archive_path}'`.strip}"
+      puts "  - Export Options: #{export_options}"
       puts "  - 작업 디렉토리: #{Dir.pwd}"
       
-      # 재시도 (다른 방법으로)
-      puts "🔄 다른 방법으로 재시도..."
-      ipa_path = gym(
-        archive_path: archive_path,
-        skip_build_archive: true,
-        export_method: "app-store",
-        output_directory: "../../build/ipa",
-        output_name: "Wit.ipa",
-        export_options: {
-          method: "app-store",
-          teamID: ENV["APPLE_TEAM_ID"]
-        }
-      )
+      # 코드 사이닝 상태 확인
+      puts "🔍 코드 사이닝 상태:"
+      sh "security find-identity -v -p codesigning"
+      
+      # 프로비저닝 프로파일 확인
+      puts "🔍 프로비저닝 프로파일:"
+      sh "ls -la ~/Library/MobileDevice/Provisioning\\ Profiles/ | head -5"
+      
+      UI.user_error!("IPA export failed: #{e.message}")
     end
     
     puts "✅ IPA 생성 완료: #{ipa_path}"
