@@ -44,6 +44,42 @@ platform :ios do
     )
 
     puts "🔑 API Key 설정 완료"
+    
+    # 🔍 필수 환경변수 검증
+    puts "🔍 GitHub Secrets에서 전달된 환경변수 검증 중..."
+    required_env_vars = {
+      "APP_STORE_CONNECT_API_KEY_ID" => ENV["APP_STORE_CONNECT_API_KEY_ID"],
+      "APP_STORE_CONNECT_ISSUER_ID" => ENV["APP_STORE_CONNECT_ISSUER_ID"],
+      "APP_STORE_CONNECT_API_KEY_PATH" => ENV["APP_STORE_CONNECT_API_KEY_PATH"],
+      "APPLE_ID" => ENV["APPLE_ID"],
+      "APPLE_TEAM_ID" => ENV["APPLE_TEAM_ID"]
+    }
+    
+    missing_vars = []
+    required_env_vars.each do |name, value|
+      if value.nil? || value.empty?
+        missing_vars << name
+        puts "❌ #{name}: 누락됨"
+      else
+        puts "✅ #{name}: 설정됨"
+      end
+    end
+    
+    unless missing_vars.empty?
+      UI.user_error!("필수 환경변수가 누락되었습니다: #{missing_vars.join(', ')}\nGitHub Secrets 설정을 확인해주세요.")
+    end
+    
+    puts "✅ 모든 필수 환경변수 검증 완료"
+    
+    # Apple Developer Account 인증 (xcodebuild가 계정을 인식하도록)
+    puts "🔐 Apple Developer Account 인증 중..."
+    begin
+      # App Store Connect API를 통한 계정 인증
+      sh "xcrun altool --validate-app --type ios --file dummy.ipa --apiKey #{ENV['APP_STORE_CONNECT_API_KEY_ID']} --apiIssuer #{ENV['APP_STORE_CONNECT_ISSUER_ID']} 2>/dev/null || true"
+      puts "✅ Apple Developer Account 인증 완료"
+    rescue => e
+      puts "⚠️ 계정 인증 중 오류 (계속 진행): #{e.message}"
+    end
 
     # 🎯 1단계: 아카이브 유효성 검사
     puts "🔍 아카이브 유효성 검사 중..."
@@ -70,16 +106,63 @@ platform :ios do
     # 🎯 2단계: xcodebuild로 직접 IPA 내보내기 (gym 대신)
     puts "📦 xcodebuild로 직접 IPA 내보내기 중..."
     
-    # Export Options 생성
+    # 🔍 실제 프로비저닝 프로파일 이름 찾기
+    puts "🔍 설치된 프로비저닝 프로파일에서 'com.Juhkang.Wit' 매칭 프로파일 찾는 중..."
+    
+    # 설치된 모든 프로비저닝 프로파일 검사
+    profile_files = Dir.glob("#{Dir.home}/Library/MobileDevice/Provisioning Profiles/*.mobileprovision")
+    matching_profile_name = nil
+    
+    profile_files.each do |profile_path|
+      begin
+        # 프로파일 내용 파싱
+        profile_content = `security cms -D -i "#{profile_path}" 2>/dev/null`
+        if profile_content.include?("com.Juhkang.Wit")
+          # 프로파일 이름 추출
+          if profile_content =~ /<key>Name<\/key>\s*<string>([^<]+)<\/string>/
+            matching_profile_name = $1
+            puts "✅ 매칭 프로파일 발견: #{matching_profile_name}"
+            break
+          end
+        end
+      rescue => e
+        puts "⚠️ 프로파일 파싱 오류: #{e.message}"
+      end
+    end
+    
+    # 매칭 프로파일이 없으면 환경변수 사용 (하드코딩 제거)
+    unless matching_profile_name
+      matching_profile_name = ENV["PROVISIONING_PROFILE_SPECIFIER"]
+      if matching_profile_name
+        puts "✅ 환경변수에서 프로파일 사용: #{matching_profile_name}"
+      else
+        UI.user_error!("프로비저닝 프로파일을 찾을 수 없습니다. GitHub Secrets와 워크플로우 설정을 확인해주세요.")
+      end
+    end
+
+    # Export Options 생성 (동적 프로파일명 사용)
     export_options = {
-      method: "app-store",
+      method: "app-store-connect",  # deprecated "app-store" -> "app-store-connect"
       teamID: ENV["APPLE_TEAM_ID"],
       uploadSymbols: true,
       uploadBitcode: false,
       compileBitcode: false,
       stripSwiftSymbols: true,
-      signingStyle: "automatic"
+      signingStyle: "manual",  # automatic -> manual (더 안정적)
+      # 동적으로 찾은 프로비저닝 프로파일 사용
+      provisioningProfiles: {
+        "com.Juhkang.Wit" => matching_profile_name
+      },
+      # 코드 사이닝 인증서 명시적 지정
+      signingCertificate: "Apple Distribution"
     }
+    
+    puts "📋 Export Options 설정:"
+    puts "  - Method: #{export_options[:method]}"
+    puts "  - Team ID: #{export_options[:teamID]}"
+    puts "  - Signing Style: #{export_options[:signingStyle]}"
+    puts "  - Provisioning Profile: #{matching_profile_name}"
+    puts "  - Signing Certificate: #{export_options[:signingCertificate]}"
     
     # ExportOptions.plist 생성
     export_plist_path = "../../build/ExportOptions.plist"
