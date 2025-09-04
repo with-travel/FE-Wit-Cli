@@ -18,13 +18,13 @@ const duplicateCheckNickName = async (nickname: string): Promise<boolean> => {
   return response.data;
 };
 
-const duplicateCheckEmail = async (email: string) => {
-  const response = await axiosInstance.get(`/api/v1/auth/email-available`, {
+const duplicateCheckEmail = async (email: string): Promise<boolean> => {
+  const { data } = await axiosInstance.get(`/api/v1/auth/email-available`, {
     params: {
       email,
     },
   });
-  return response.data;
+  return data;
 };
 
 const postLogin = async (body: RequestLogin): Promise<ResponseLogin> => {
