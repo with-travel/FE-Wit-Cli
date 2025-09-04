@@ -3,11 +3,6 @@ type RequestLogin = {
   password: string;
 };
 
-type RequestSignup = {
-  email: string;
-  password: string;
-};
-
 type ExtraInfo = {
   nickname: string;
   birthdate: string;
@@ -29,15 +24,9 @@ type Survey = {
   spendPatterns: string;
 };
 
-type UserInfoSignupRequest = {
+type RequestSignup = {
   extraInfo: ExtraInfo;
   survey: Survey;
 };
 
-export type {
-  RequestLogin,
-  RequestSignup,
-  UserInfoSignupRequest,
-  ExtraInfo,
-  Survey,
-};
+export type { RequestLogin, RequestSignup, ExtraInfo, Survey };
