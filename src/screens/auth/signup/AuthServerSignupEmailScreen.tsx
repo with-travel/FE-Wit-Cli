@@ -97,7 +97,11 @@ function AuthServerSignupEmailScreen({
                 alignItems: 'center',
               }}
             >
-              <View style={{ width: '75%' }}>
+              <View
+                style={{
+                  width: emailCheckStatus === 'available' ? '100%' : '75%',
+                }}
+              >
                 <InputField
                   label="이메일 주소"
                   keyboardType="email-address"
