@@ -6,7 +6,6 @@ import {
   Dimensions,
   Image,
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
@@ -15,6 +14,10 @@ import React from 'react';
 import CustomButton from '@/components/common/CustomButton';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import { colors } from '@/constants/colors';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 
 type AuthScreenProps = StackScreenProps<
   AuthStackParamList,
@@ -24,10 +27,11 @@ type AuthScreenProps = StackScreenProps<
 const { width, height } = Dimensions.get('window');
 
 function AuthHomeScreen({ navigation }: AuthScreenProps) {
-  const handleKakaoLogin = async () => {
-    //카카오 로그인 화면으로 이동
-    // router.push("/auth/kakaologin");
-  };
+  const insets = useSafeAreaInsets();
+  // const handleKakaoLogin = async () => {
+  //   //카카오 로그인 화면으로 이동
+  //   // router.push("/auth/kakaologin");
+  // };
 
   const handleServerLogin = () => {
     navigation.navigate(authNavigations.AUTH_SERVER_LOGIN);
@@ -39,17 +43,7 @@ function AuthHomeScreen({ navigation }: AuthScreenProps) {
   };
   return (
     <LinearGradient
-      colors={[
-        '#1F80B8',
-        '#2A8F8F',
-        '#359D66',
-        '#919A3F',
-        '#BF992C',
-        '#ED9718',
-        '#E27623',
-        '#DD6528',
-        '#D7542D',
-      ]}
+      colors={colors.LINEAR_BACKGROUND}
       style={styles.container}
       start={{ x: 0.5, y: 0 }}
       end={{ x: 0.5, y: 1 }}
@@ -64,20 +58,26 @@ function AuthHomeScreen({ navigation }: AuthScreenProps) {
           위트와 함께{'\n'}
           여행할 준비가 되셨나요?
         </Text>
-        <Pressable style={styles.kakaoButton} onPress={handleKakaoLogin}>
+
+        <View style={{ gap: 16, paddingHorizontal: 20, alignItems: 'center' }}>
+          {/* <Pressable style={styles.kakaoButton} onPress={handleKakaoLogin}>
           <Ionicons name="chatbubble-sharp" color={'#181500'} size={20} />
           <Text style={styles.kakaoText}>카카오톡으로 시작하기</Text>
-        </Pressable>
-        <View style={styles.serverLoginButton}>
-          <CustomButton label="서버 로그인" onPress={handleServerLogin} />
+        </Pressable> */}
+          <View style={styles.serverLoginButton}>
+            <CustomButton label="서버 로그인" onPress={handleServerLogin} />
+          </View>
+          <Pressable
+            style={styles.serverSignupContainer}
+            onPress={handleServerSignup}
+          >
+            <Text style={styles.serverSignupText}>이메일로 회원가입</Text>
+          </Pressable>
         </View>
-        <Pressable
-          style={styles.serverSignupContainer}
-          onPress={handleServerSignup}
+
+        <View
+          style={[styles.notificationContainer, { bottom: insets.bottom + 24 }]}
         >
-          <Text style={styles.serverSignupText}>이메일로 회원가입</Text>
-        </Pressable>
-        <View style={styles.serverLoginButton}>
           <Text style={styles.infoNotification}>
             가입을 진행할 경우 <Text style={styles.underlined}>서비스약관</Text>{' '}
             및 <Text style={styles.underlined}>개인정보처리방침</Text>에 동의한
@@ -96,21 +96,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   safeArea: {
-    flex: 1,
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: height * 0.1,
+    gap: 12,
   },
   logo: {
     width: width,
-    height: height * 0.6,
+    marginBottom: 48,
   },
   title: {
-    color: '#FFFFFF',
-    fontSize: 28,
+    color: colors.UNCHANGED_WHITE,
+    fontSize: 30,
     fontWeight: '700',
-    textAlign: 'center',
+    textAlign: 'left',
     lineHeight: 36,
+    marginBottom: 28,
   },
   kakaoButton: {
     gap: 8,
@@ -135,6 +136,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.UNCHANGED_WHITE,
     textDecorationLine: 'underline',
+  },
+  notificationContainer: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
   },
   infoNotification: {
     fontSize: 10,
