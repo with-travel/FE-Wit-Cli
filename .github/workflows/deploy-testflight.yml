@@ -594,41 +594,65 @@ jobs:
             sudo apt-get update && sudo apt-get install -y jq
           fi
 
-          # CHANGELOG.json에서 최신 릴리즈 정보 추출 (Expo 방식)
+          # CHANGELOG.json에서 최신 릴리즈 정보 추출 (jq를 사용한 안전한 방식)
           if [ -f "CHANGELOG.json" ]; then
-            LATEST_RELEASE=$(jq '.releases[0]' CHANGELOG.json)
+            echo "📋 CHANGELOG.json 파일을 찾았습니다."
             
-            if [ "$LATEST_RELEASE" != "null" ]; then
-              # 카테고리별 변경사항을 한국어 제목으로 변환 (개선된 매핑)
-              LATEST_CHANGES=$(echo "$LATEST_RELEASE" | jq -r '
-                if .changes and (.changes | length) > 0 then
-                  .changes | to_entries[] | 
-                  (if (.value | length) > 0 then
-                    (if .key == "new_features" then "**새로운 기능**"
-                     elif .key == "bug_fixes" then "**버그 수정**"
-                     elif .key == "style" then "**스타일 개선**"
-                     elif .key == "refactor" then "**리팩토링**"
-                     elif .key == "chores" then "**작업 정리**"
-                     elif .key == "features" then "**새로운 기능**"
-                     elif .key == "documentation" then "**문서화**"
-                     elif .key == "test" then "**테스트**"
-                     elif .key == "ui" then "**UI 개선**"
-                     elif .key == "performance" then "**성능 개선**"
-                     elif .key == "security" then "**보안**"
-                     elif .key == "api" then "**API**"
-                     elif .key == "fixes" then "**수정사항**"
-                     else "**" + (.key | gsub("_"; " ") | ascii_upcase) + "**"
-                     end) + "\n" + 
-                    (.value | map("- " + .) | join("\n")) + "\n"
-                  else empty end
-                else
-                  "**일반**\n- 새로운 버전이 출시되었습니다."
-                end
-              ')
+            # 최신 릴리즈가 존재하는지 확인
+            RELEASE_COUNT=$(jq '.releases | length' CHANGELOG.json 2>/dev/null || echo "0")
+            
+            if [ "$RELEASE_COUNT" -gt 0 ]; then
+              echo "📄 최신 릴리즈 정보 추출 중..."
+              
+              # 각 카테고리별로 변경사항 추출 (안전한 jq 구문)
+              NEW_FEATURES=$(jq -r '.releases[0].changes.new_features[]? // empty' CHANGELOG.json 2>/dev/null | sed 's/^/- /')
+              BUG_FIXES=$(jq -r '.releases[0].changes.bug_fixes[]? // empty' CHANGELOG.json 2>/dev/null | sed 's/^/- /')
+              STYLE=$(jq -r '.releases[0].changes.style[]? // empty' CHANGELOG.json 2>/dev/null | sed 's/^/- /')
+              REFACTOR=$(jq -r '.releases[0].changes.refactor[]? // empty' CHANGELOG.json 2>/dev/null | sed 's/^/- /')
+              CHORES=$(jq -r '.releases[0].changes.chores[]? // empty' CHANGELOG.json 2>/dev/null | sed 's/^/- /')
+              FEATURES=$(jq -r '.releases[0].changes.features[]? // empty' CHANGELOG.json 2>/dev/null | sed 's/^/- /')
+              FIXES=$(jq -r '.releases[0].changes.fixes[]? // empty' CHANGELOG.json 2>/dev/null | sed 's/^/- /')
+              
+              # 변경사항 조합
+              LATEST_CHANGES=""
+              
+              if [ -n "$NEW_FEATURES" ]; then
+                LATEST_CHANGES="${LATEST_CHANGES}**새로운 기능**\n${NEW_FEATURES}\n\n"
+              fi
+              
+              if [ -n "$FEATURES" ]; then
+                LATEST_CHANGES="${LATEST_CHANGES}**새로운 기능**\n${FEATURES}\n\n"
+              fi
+              
+              if [ -n "$BUG_FIXES" ]; then
+                LATEST_CHANGES="${LATEST_CHANGES}**버그 수정**\n${BUG_FIXES}\n\n"
+              fi
+              
+              if [ -n "$FIXES" ]; then
+                LATEST_CHANGES="${LATEST_CHANGES}**수정사항**\n${FIXES}\n\n"
+              fi
+              
+              if [ -n "$STYLE" ]; then
+                LATEST_CHANGES="${LATEST_CHANGES}**스타일 개선**\n${STYLE}\n\n"
+              fi
+              
+              if [ -n "$REFACTOR" ]; then
+                LATEST_CHANGES="${LATEST_CHANGES}**리팩토링**\n${REFACTOR}\n\n"
+              fi
+              
+              if [ -n "$CHORES" ]; then
+                LATEST_CHANGES="${LATEST_CHANGES}**작업 정리**\n${CHORES}\n\n"
+              fi
+              
+              # 변경사항이 없는 경우 기본 메시지
+              if [ -z "$LATEST_CHANGES" ]; then
+                LATEST_CHANGES="**일반**\n- 새로운 버전이 출시되었습니다."
+              fi
+              
               echo "✅ CHANGELOG.json에서 변경사항 추출 완료"
             else
               LATEST_CHANGES="**일반**\n- 새로운 버전이 출시되었습니다."
-              echo "⚠️ CHANGELOG.json에서 릴리즈 정보를 찾을 수 없어 기본 메시지 사용"
+              echo "⚠️ CHANGELOG.json에 릴리즈 정보가 없어 기본 메시지 사용"
             fi
           else
             LATEST_CHANGES="**일반**\n- 새로운 버전이 출시되었습니다."

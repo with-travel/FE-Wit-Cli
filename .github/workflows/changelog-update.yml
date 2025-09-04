@@ -108,8 +108,21 @@ jobs:
 
       - name: Grant execute permission to scripts
         run: |
-          chmod +x .github/scripts/rn_version_manager.sh
-          chmod +x .github/scripts/changelog_manager.py
+          echo "📋 스크립트 파일 권한 설정 중..."
+          if [ -f ".github/scripts/rn_version_manager.sh" ]; then
+            chmod +x .github/scripts/rn_version_manager.sh
+            echo "✅ rn_version_manager.sh 권한 설정 완료"
+          else
+            echo "❌ rn_version_manager.sh 파일을 찾을 수 없습니다!"
+            exit 1
+          fi
+
+          if [ -f ".github/scripts/changelog_manager.py" ]; then
+            chmod +x .github/scripts/changelog_manager.py
+            echo "✅ changelog_manager.py 권한 설정 완료"
+          else
+            echo "⚠️ changelog_manager.py 파일을 찾을 수 없습니다 (선택적)"
+          fi
 
       - name: Increment version and sync native files
         id: versioning
@@ -351,7 +364,8 @@ jobs:
                       json.dump(changelog_data, f, indent=2, ensure_ascii=False)
                   
                   print("✅ CHANGELOG.json 업데이트 완료!")
-                  print(f"📊 총 {len(categories)}개 카테고리, {sum(len(items) for items in categories.values())}개 변경사항")
+                  total_items = sum(len(data['items']) for data in categories.values())
+                  print(f"📊 총 {len(categories)}개 카테고리, {total_items}개 변경사항")
                   
               except Exception as e:
                   print(f"❌ 파싱 오류: {e}")
@@ -434,48 +448,93 @@ jobs:
         run: |
           echo "📄 PREVIOUS_CHANGES.md 생성 중..."
 
-          if [ -f "CHANGELOG.json" ]; then
-            # CHANGELOG.json에서 최신 버전을 제외한 이전 버전들로 PREVIOUS_CHANGES.md 생성 (Expo 방식)
-            jq -r '
-              "# 이전 변경사항\n\n" +
-              (.releases[1:] | map(
-                "## [" + .version + "] - " + .timestamp[0:10] + "\n" +
-                (if .changes and (.changes | length) > 0 then
-                  (.changes | to_entries | map(
-                    (if (.value | length) > 0 then
-                      "\n**" + (
-                        if .key == "new_features" then "새로운 기능"
-                        elif .key == "bug_fixes" then "버그 수정"
-                        elif .key == "style" then "스타일 개선"
-                        elif .key == "refactor" then "리팩토링"
-                        elif .key == "chores" then "작업 정리"
-                        elif .key == "features" then "새로운 기능"
-                        elif .key == "documentation" then "문서화"
-                        elif .key == "test" then "테스트"
-                        elif .key == "ui" then "UI 개선"
-                        elif .key == "performance" then "성능 개선"
-                        elif .key == "security" then "보안"
-                        elif .key == "api" then "API"
-                        elif .key == "fixes" then "수정사항"
-                        else (.key | gsub("_"; " ") | ascii_upcase)
-                        end
-                      ) + "**\n" + 
-                      (.value | map("- " + .) | join("\n"))
-                    else empty end)
-                  ) | join("\n")
-                else
-                  "\n**일반**\n- PR #" + (.pr_number | tostring) + "의 변경사항이 반영되었습니다."
-                end) + "\n\n---\n"
-              ) | join("\n"))
-            ' CHANGELOG.json > PREVIOUS_CHANGES.md
-            
-            echo "✅ PREVIOUS_CHANGES.md 생성 완료"
-          else
-            echo "# 이전 변경사항" > PREVIOUS_CHANGES.md
-            echo "" >> PREVIOUS_CHANGES.md
-            echo "아직 이전 변경사항이 없습니다." >> PREVIOUS_CHANGES.md
-            echo "⚠️ CHANGELOG.json이 없어 기본 PREVIOUS_CHANGES.md 생성"
-          fi
+          python3 << 'PYTHON_SCRIPT'
+          import json
+          import os
+
+          def get_category_title(key):
+              """카테고리 키를 한국어 제목으로 변환"""
+              category_titles = {
+                  'new_features': '새로운 기능',
+                  'bug_fixes': '버그 수정', 
+                  'style': '스타일 개선',
+                  'refactor': '리팩토링',
+                  'chores': '작업 정리',
+                  'features': '새로운 기능',
+                  'documentation': '문서화',
+                  'test': '테스트',
+                  'general': '일반',
+                  'ui': 'UI 개선',
+                  'performance': '성능 개선',
+                  'security': '보안',
+                  'api': 'API',
+                  'fixes': '수정사항'
+              }
+              return category_titles.get(key.lower(), key.replace('_', ' ').title())
+
+          try:
+              if os.path.exists('CHANGELOG.json'):
+                  with open('CHANGELOG.json', 'r', encoding='utf-8') as f:
+                      data = json.load(f)
+                  
+                  with open('PREVIOUS_CHANGES.md', 'w', encoding='utf-8') as f:
+                      f.write("# 이전 변경사항\n\n")
+                      
+                      # 최신 버전(인덱스 0)을 제외한 나머지 버전들 처리
+                      previous_releases = data.get('releases', [])[1:]
+                      
+                      if not previous_releases:
+                          f.write("아직 이전 변경사항이 없습니다.\n")
+                      else:
+                          for release in previous_releases:
+                              version = release.get('version', 'Unknown')
+                              date = release.get('timestamp', release.get('date', ''))[:10]  # YYYY-MM-DD
+                              pr_number = release.get('pr_number', 'N/A')
+                              changes = release.get('changes', {})
+                              
+                              f.write(f"## [{version}] - {date}\n\n")
+                              
+                              # 변경사항이 있는 경우
+                              if changes and any(items for items in changes.values() if items):
+                                  for category_key, items in changes.items():
+                                      if items and len(items) > 0:
+                                          title = get_category_title(category_key)
+                                          f.write(f"**{title}**\n")
+                                          for item in items:
+                                              f.write(f"- {item}\n")
+                                          f.write("\n")
+                              else:
+                                  # 변경사항이 없는 경우 기본 메시지
+                                  f.write(f"**일반**\n")
+                                  f.write(f"- PR #{pr_number}의 변경사항이 반영되었습니다.\n\n")
+                              
+                              f.write("---\n\n")
+                  
+                  print("✅ PREVIOUS_CHANGES.md 생성 완료")
+              else:
+                  # CHANGELOG.json이 없는 경우
+                  with open('PREVIOUS_CHANGES.md', 'w', encoding='utf-8') as f:
+                      f.write("# 이전 변경사항\n\n")
+                      f.write("아직 이전 변경사항이 없습니다.\n")
+                  print("⚠️ CHANGELOG.json이 없어 기본 PREVIOUS_CHANGES.md 생성")
+                  
+          except Exception as e:
+              print(f"❌ PREVIOUS_CHANGES.md 생성 실패: {e}")
+              import traceback
+              print(f"📋 상세 오류 정보:\n{traceback.format_exc()}")
+              
+              # 실패해도 워크플로우를 중단하지 않도록 기본 파일 생성
+              try:
+                  with open('PREVIOUS_CHANGES.md', 'w', encoding='utf-8') as f:
+                      f.write("# 이전 변경사항\n\n")
+                      f.write("변경사항 처리 중 오류가 발생했습니다.\n")
+                  print("⚠️ 기본 PREVIOUS_CHANGES.md 파일을 생성했습니다.")
+              except Exception as fallback_error:
+                  print(f"❌ 기본 파일 생성도 실패: {fallback_error}")
+              
+              # 워크플로우 계속 진행을 위해 exit(1) 제거
+              pass
+          PYTHON_SCRIPT
 
       - name: Commit and push CHANGELOG updates
         run: |
