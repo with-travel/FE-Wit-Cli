@@ -206,8 +206,9 @@ platform :ios do
         puts "   찾은 파일: #{found_files}"
         
         if !found_files.empty?
-          ipa_path = found_files.first
-          puts "✅ IPA 파일 발견: #{ipa_path}"
+          ipa_path = File.expand_path(found_files.first)  # 절대경로로 변환
+          puts "✅ IPA 파일 발견: #{found_files.first}"
+          puts "✅ 절대경로 변환: #{ipa_path}"
           break
         end
       end

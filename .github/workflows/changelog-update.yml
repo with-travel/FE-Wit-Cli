@@ -140,18 +140,32 @@ jobs:
 
           echo "📝 CodeRabbit Summary 동적 파싱 시작..."
 
-          # Summary 섹션 추출 (Expo 방식)
+          # Summary 섹션 추출 (개선된 방식)
+          echo "🔍 PR HTML에서 CodeRabbit Summary 추출 중..."
+
+          # 1. HTML에서 Summary 섹션 추출
           sed -n '/<h2[^>]*>Summary by CodeRabbit<\/h2>/,/<\/div>/p' pr_content.html > summary_section.html
 
-          # Summary가 제대로 추출되었는지 확인
-          echo "📄 추출된 Summary 섹션 크기: $(wc -c < summary_section.html) bytes"
-          if [ $(wc -c < summary_section.html) -lt 100 ]; then
-            echo "⚠️ Summary 섹션이 너무 작습니다. 전체 PR 내용에서 다시 추출 시도..."
-            grep -A 50 "Summary by CodeRabbit" pr_content.html > summary_section.html
+          # 2. Summary가 제대로 추출되었는지 확인
+          SUMMARY_SIZE=$(wc -c < summary_section.html)
+          echo "📄 추출된 Summary 섹션 크기: ${SUMMARY_SIZE} bytes"
+
+          if [ "$SUMMARY_SIZE" -lt 100 ]; then
+            echo "⚠️ Summary 섹션이 너무 작습니다. 다른 방식으로 추출 시도..."
+            # 더 넓은 범위로 추출
+            sed -n '/Summary by CodeRabbit/,/<!-- end of auto-generated comment/p' pr_content.html > summary_section.html
+            SUMMARY_SIZE=$(wc -c < summary_section.html)
+            echo "📄 재추출된 Summary 섹션 크기: ${SUMMARY_SIZE} bytes"
           fi
 
-          # Raw summary 저장 (백업용)
+          # 3. HTML 태그 제거하고 텍스트만 추출
           cat summary_section.html | sed 's/<[^>]*>//g' | sed 's/&nbsp;/ /g; s/&amp;/\&/g; s/&lt;/</g; s/&gt;/>/g; s/&quot;/"/g' > raw_summary.txt
+
+          # 4. 추출된 내용 확인
+          echo "📋 추출된 Summary 내용 미리보기:"
+          echo "===================="
+          head -10 raw_summary.txt
+          echo "===================="
 
           echo "🔍 동적 카테고리 추출 중..."
           echo "📄 Summary 섹션 미리보기:"
@@ -212,83 +226,62 @@ jobs:
               print(f"✅ '{section_title}' 섹션에서 {len(items)}개 아이템 추출 완료")
               return items
 
-          def detect_categories(html_content):
-              """HTML에서 동적으로 카테고리 감지 - Expo 방식 참조"""
-              print("🔍 HTML에서 카테고리 감지 시작...")
-              print(f"📄 HTML 내용 길이: {len(html_content)} characters")
+          def detect_categories(content):
+              """텍스트에서 동적으로 카테고리 감지 - 개선된 방식"""
+              print("🔍 텍스트에서 카테고리 감지 시작...")
+              print(f"📄 텍스트 내용 길이: {len(content)} characters")
               
               detected_categories = {}
               
-              # 1. strong 태그 안의 카테고리 제목들 찾기 (Expo 방식)
-              strong_texts = re.findall(r'<strong[^>]*>([^<]+)</strong>', html_content, re.IGNORECASE)
-              print(f"🎯 발견된 strong 태그들: {strong_texts}")
+              # 텍스트를 줄별로 분리
+              lines = content.split('\n')
+              current_category = None
+              current_items = []
               
-              for strong_text in strong_texts:
-                  clean_text = strong_text.strip()
-                  print(f"🏷️ 처리 중인 카테고리: '{clean_text}'")
+              for line in lines:
+                  line = line.strip()
+                  if not line:
+                      continue
                   
-                  # AI가 생성한 카테고리 제목을 그대로 사용
-                  items = extract_items_from_section(html_content, clean_text)
-                  if items:
-                      # 카테고리 키를 안전한 형태로 변환 (소문자, 공백을 언더스코어로)
-                      safe_key = re.sub(r'[^a-zA-Z0-9가-힣]', '_', clean_text.lower()).strip('_')
-                      if not safe_key:  # 안전한 키가 생성되지 않으면 fallback
-                          safe_key = f"category_{len(detected_categories)}"
+                  print(f"🔍 처리 중인 라인: '{line[:50]}...'")
+                  
+                  # 카테고리 제목 감지 (- 로 시작하는 주요 섹션들)
+                  if line in ['New Features', 'Bug Fixes', 'Style', 'Refactor', 'Chores', 'Features', 'Fixes', 'Changes', 'Documentation', 'Tests', 'Performance', 'Security']:
+                      # 이전 카테고리가 있다면 저장
+                      if current_category and current_items:
+                          safe_key = re.sub(r'[^a-zA-Z0-9가-힣]', '_', current_category.lower()).strip('_')
+                          detected_categories[safe_key] = {
+                              'title': current_category,
+                              'items': current_items.copy()
+                          }
+                          print(f"✅ 카테고리 저장: '{current_category}' -> '{safe_key}' ({len(current_items)}개 아이템)")
                       
-                      print(f"✅ 카테고리 추가: '{clean_text}' -> '{safe_key}' ({len(items)}개 아이템)")
-                      detected_categories[safe_key] = {
-                          'title': clean_text,
-                          'items': items
-                      }
-                  else:
-                      print(f"❌ '{clean_text}' 카테고리에서 아이템을 찾을 수 없음")
+                      # 새 카테고리 시작
+                      current_category = line
+                      current_items = []
+                      print(f"🏷️ 새 카테고리 시작: '{current_category}'")
+                      
+                  # 아이템 감지 (들여쓰기나 - 로 시작하는 항목들)
+                  elif current_category and (line.startswith('  -') or line.startswith('-') or line.startswith('•')):
+                      # 불릿 포인트 제거하고 텍스트만 추출
+                      item_text = re.sub(r'^[\s\-•]+', '', line).strip()
+                      if item_text and len(item_text) > 3:  # 의미있는 내용만
+                          current_items.append(item_text)
+                          print(f"  📝 아이템 추가: '{item_text[:50]}...'")
+                  
+                  # 일반 텍스트도 아이템으로 간주 (카테고리 다음에 오는 설명문)
+                  elif current_category and len(line) > 10 and not line.endswith(':'):
+                      current_items.append(line)
+                      print(f"  📝 설명 아이템 추가: '{line[:50]}...'")
               
-              # 2. strong 태그로 찾지 못한 경우, 텍스트 기반 검색 (백업 방식)
-              if not detected_categories:
-                  print("🔄 strong 태그로 찾지 못해 텍스트 기반 검색 시도...")
-                  
-                  # HTML 태그 제거하고 텍스트만 추출
-                  clean_text = re.sub(r'<[^>]*>', '', html_content)
-                  clean_text = html.unescape(clean_text)
-                  
-                  lines = clean_text.split('\n')
-                  current_category = None
-                  
-                  for line in lines:
-                      line = line.strip()
-                      if not line:
-                          continue
-                      
-                      # 카테고리 감지 (불릿 포인트나 특정 키워드)
-                      category_keywords = ['New Features', 'Bug Fixes', 'Style', 'Refactor', 'Chores', 'Features', 'Fixes', 'Changes']
-                      
-                      for keyword in category_keywords:
-                          if keyword.lower() in line.lower() and len(line) < 50:  # 제목 라인은 보통 짧음
-                              current_category = line
-                              safe_key = re.sub(r'[^a-zA-Z0-9가-힣]', '_', current_category.lower()).strip('_')
-                              if safe_key not in detected_categories:
-                                  detected_categories[safe_key] = {
-                                      'title': current_category,
-                                      'items': []
-                                  }
-                              print(f"✅ 텍스트 기반 카테고리 발견: '{current_category}' -> '{safe_key}'")
-                              break
-                      
-                      # 아이템 감지 (o, ○, -, • 등으로 시작)
-                      if current_category:
-                          item_prefixes = ['o ', '○ ', '- ', '• ', '* ']
-                          for prefix in item_prefixes:
-                              if line.startswith(prefix):
-                                  item = line[len(prefix):].strip()
-                                  if item and len(item) > 3:  # 의미있는 내용만
-                                      safe_key = re.sub(r'[^a-zA-Z0-9가-힣]', '_', current_category.lower()).strip('_')
-                                      if safe_key in detected_categories:
-                                          detected_categories[safe_key]['items'].append(item)
-                                          print(f"  📝 텍스트 기반 아이템 추가: '{item[:30]}...'")
-                                  break
-              
-              # 빈 카테고리 제거
-              detected_categories = {k: v for k, v in detected_categories.items() if v.get('items')}
+              # 마지막 카테고리 저장
+              if current_category and current_items:
+                  safe_key = re.sub(r'[^a-zA-Z0-9가-힣]', '_', current_category.lower()).strip('_')
+                  detected_categories[safe_key] = {
+                      'title': current_category,
+                      'items': current_items.copy()
+                  }
+                  print(f"✅ 마지막 카테고리 저장: '{current_category}' -> '{safe_key}' ({len(current_items)}개 아이템)")
               
               print(f"🎯 최종 감지된 카테고리 수: {len(detected_categories)}")
               for category, data in detected_categories.items():
@@ -305,17 +298,17 @@ jobs:
               timestamp = os.environ.get('TIMESTAMP')
               
               try:
-                  # HTML 파일 읽기
-                  with open('summary_section.html', 'r', encoding='utf-8') as f:
-                      html_content = f.read()
+                  # 텍스트 파일 읽기 (HTML 태그 제거된 버전)
+                  with open('raw_summary.txt', 'r', encoding='utf-8') as f:
+                      text_content = f.read()
                   
-                  print(f"📄 읽어온 HTML 내용 미리보기:")
+                  print(f"📄 읽어온 텍스트 내용 미리보기:")
                   print("=" * 50)
-                  print(html_content[:500] + "..." if len(html_content) > 500 else html_content)
+                  print(text_content[:500] + "..." if len(text_content) > 500 else text_content)
                   print("=" * 50)
                   
                   # 동적 카테고리 감지
-                  categories = detect_categories(html_content)
+                  categories = detect_categories(text_content)
                   
                   print("🎯 감지된 카테고리들:")
                   for key, value in categories.items():
@@ -323,16 +316,8 @@ jobs:
                       for item in value['items'][:3]:  # 첫 3개 아이템만 미리보기
                           print(f"    • {item[:80]}...")
                   
-                  # Raw summary 읽기 (있다면)
-                  raw_summary = ""
-                  try:
-                      with open('summary_section.html', 'r', encoding='utf-8') as f:
-                          raw_content = f.read()
-                      # HTML 태그 제거하고 텍스트만 추출
-                      raw_summary = re.sub(r'<[^>]*>', '', raw_content)
-                      raw_summary = html.unescape(raw_summary).strip()
-                  except:
-                      raw_summary = "Summary parsing failed"
+                  # Raw summary 읽기 (텍스트 버전 사용)
+                  raw_summary = text_content.strip() if text_content else "Summary parsing failed"
                   
                   # 새로운 릴리즈 엔트리 생성 (Expo 형식 참조)
                   new_release = {
