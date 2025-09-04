@@ -71,7 +71,7 @@ function AuthServerSignupAdditionalInfoScreen({
 
   return (
     <View style={styles.container}>
-      <View style={{ paddingHorizontal: 20, paddingTop: 8, marginBottom: 32 }}>
+      <View style={{ paddingTop: 8, marginBottom: 48 }}>
         <ProgressStepBar height={8} />
       </View>
       <View style={styles.infoContainer}>
@@ -105,7 +105,7 @@ function AuthServerSignupAdditionalInfoScreen({
           control={control}
           name="birthDate"
           render={({ field: { onChange, value }, fieldState: { error } }) => (
-            <View style={{ paddingHorizontal: 20 }}>
+            <View style={{ marginBottom: 24 }}>
               <Text style={styles.sectionTitle}>생년월일</Text>
               <TouchableOpacity
                 onPress={() => setShowDatePicker(true)}
@@ -225,7 +225,7 @@ function AuthServerSignupAdditionalInfoScreen({
           control={control}
           name="gender"
           render={({ field: { onChange, value } }) => (
-            <View style={{ paddingHorizontal: 20 }}>
+            <View style={{ marginBottom: 24 }}>
               <Text style={styles.sectionTitle}>성별</Text>
               <View style={styles.genderButtons}>
                 <TouchableOpacity
@@ -272,7 +272,7 @@ function AuthServerSignupAdditionalInfoScreen({
         <CustomButton
           label="다음"
           onPress={handleSubmit(onSubmit)}
-          disabled={!isValid}
+          inValid={!isValid}
         />
       </View>
     </View>
@@ -282,13 +282,13 @@ function AuthServerSignupAdditionalInfoScreen({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingHorizontal: 20,
   },
   infoContainer: {
-    gap: 32,
+    gap: 24,
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '500',
     marginBottom: 8,
     marginTop: 20,
   },
@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   pickerTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
   },
   pickerContent: {
