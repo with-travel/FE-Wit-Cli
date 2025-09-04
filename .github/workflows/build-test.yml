@@ -40,10 +40,46 @@ jobs:
         with:
           ruby-version: '3.2.2'
 
-      - name: Install CocoaPods
+      - name: Fix Xcode Project and Install CocoaPods
         run: |
           gem install cocoapods -N
-          cd ios && pod install --repo-update
+          echo "🧹 CocoaPods 캐시 정리 중..."
+          cd ios
+
+          # 기존 Pod 관련 파일들 정리
+          rm -rf Pods/
+          rm -rf build/
+          rm -f Podfile.lock
+
+          # CocoaPods 캐시 정리
+          pod cache clean --all
+
+          echo "🔧 Xcode 프로젝트 파일 검증 및 수정 중..."
+
+          # project.pbxproj 파일에서 잘못된 shellScript 배열 형태를 sed로 수정
+          PROJECT_FILE="Wit.xcodeproj/project.pbxproj"
+
+          # 백업 생성
+          cp "$PROJECT_FILE" "${PROJECT_FILE}.backup"
+
+          # shellScript가 배열 형태로 되어 있는지 확인하고 수정
+          if grep -q 'shellScript = (' "$PROJECT_FILE"; then
+            echo "⚠️ 잘못된 shellScript 배열 형태 발견, sed로 수정 중..."
+            
+            # sed를 사용한 간단한 수정 (배열을 문자열로 변환)
+            sed -i.tmp 's/shellScript = (/shellScript = "/g' "$PROJECT_FILE"
+            sed -i.tmp 's/);$/";/g' "$PROJECT_FILE"
+            sed -i.tmp 's/",$/\\n/g' "$PROJECT_FILE"
+            sed -i.tmp 's/",$//g' "$PROJECT_FILE"
+            
+            rm "${PROJECT_FILE}.tmp"
+            echo "✅ project.pbxproj 수정 완료"
+          else
+            echo "✅ project.pbxproj 파일이 정상입니다"
+          fi
+
+          echo "📦 Pod 재설치 중..."
+          pod install --repo-update --verbose
 
       - name: Build iOS (Simulator)
         env:
