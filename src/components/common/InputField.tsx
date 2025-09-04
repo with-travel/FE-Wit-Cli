@@ -11,21 +11,34 @@ import {
 interface InputFieldProps extends TextInputProps {
   label: string;
   error?: string;
+  note?: string;
+  disabled?: boolean;
 }
 
-function InputField({ label, error, ...props }: InputFieldProps) {
+function InputField({
+  label,
+  error,
+  note,
+  disabled,
+  ...props
+}: InputFieldProps) {
   return (
     <View style={styles.container}>
       <Text style={styles.labelText}>{label}</Text>
-      <TextInput {...props} style={styles.inputContainer} />
+      <TextInput
+        {...props}
+        style={styles.inputContainer}
+        editable={!disabled}
+      />
       {error && <Text style={styles.error}>{error}</Text>}
+      {note && <Text style={styles.note}>{note}</Text>}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 20,
+    flex: 1,
   },
   labelText: {
     marginBottom: 4,
@@ -39,6 +52,10 @@ const styles = StyleSheet.create({
   },
   error: {
     color: colors.RED_500,
+  },
+  note: {
+    fontSize: 12,
+    color: colors.PRIMARY_COLOR,
   },
 });
 
