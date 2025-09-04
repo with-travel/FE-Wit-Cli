@@ -599,19 +599,31 @@ jobs:
             LATEST_RELEASE=$(jq '.releases[0]' CHANGELOG.json)
             
             if [ "$LATEST_RELEASE" != "null" ]; then
-              # 카테고리별 변경사항을 한국어 제목으로 변환
+              # 카테고리별 변경사항을 한국어 제목으로 변환 (개선된 매핑)
               LATEST_CHANGES=$(echo "$LATEST_RELEASE" | jq -r '
-                .changes | to_entries[] | 
-                (if .key == "chores" then "**작업 정리**"
-                 elif .key == "features" then "**새로운 기능**"
-                 elif .key == "bug_fixes" then "**버그 수정**"
-                 elif .key == "documentation" then "**문서화**"
-                 elif .key == "refactor" then "**리팩토링**"
-                 elif .key == "style" then "**스타일링**"
-                 elif .key == "test" then "**테스트**"
-                 else "**" + (.key | gsub("_"; " ") | ascii_upcase) + "**"
-                 end) + "\n" + 
-                (.value | map("- " + .) | join("\n")) + "\n"
+                if .changes and (.changes | length) > 0 then
+                  .changes | to_entries[] | 
+                  (if (.value | length) > 0 then
+                    (if .key == "new_features" then "**새로운 기능**"
+                     elif .key == "bug_fixes" then "**버그 수정**"
+                     elif .key == "style" then "**스타일 개선**"
+                     elif .key == "refactor" then "**리팩토링**"
+                     elif .key == "chores" then "**작업 정리**"
+                     elif .key == "features" then "**새로운 기능**"
+                     elif .key == "documentation" then "**문서화**"
+                     elif .key == "test" then "**테스트**"
+                     elif .key == "ui" then "**UI 개선**"
+                     elif .key == "performance" then "**성능 개선**"
+                     elif .key == "security" then "**보안**"
+                     elif .key == "api" then "**API**"
+                     elif .key == "fixes" then "**수정사항**"
+                     else "**" + (.key | gsub("_"; " ") | ascii_upcase) + "**"
+                     end) + "\n" + 
+                    (.value | map("- " + .) | join("\n")) + "\n"
+                  else empty end
+                else
+                  "**일반**\n- 새로운 버전이 출시되었습니다."
+                end
               ')
               echo "✅ CHANGELOG.json에서 변경사항 추출 완료"
             else
