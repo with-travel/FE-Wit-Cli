@@ -1,6 +1,14 @@
 {
   "releases": [
     {
+      "version": "1.0.52",
+      "date": "2025-09-04",
+      "timestamp": "2025-09-04T13:55:04Z",
+      "pr_number": 101,
+      "raw_summary": "\"body_html\": \"\\nSummary by CodeRabbit\\n\\n\\nNew Features\\n\\n회원가입 이메일 중복확인 추가: 버튼으로 확인, 상태표시(확인중/사용 가능/중복) 및 결과에 따른 안내, 사용 가능 시에만 다음 단계 진행.\\n\\n\\n\\nStyle\\n\\n이메일 입력과 중복확인 버튼을 한 줄로 배치; 컨테이너 패딩·간격·버튼/텍스트 스타일 조정; 상태에 따른 버튼 비활성화.\\n\\n\\n\\nChores / Docs\\n\\n앱 버전 및 패키지 버전 업데이트(1.0.51) 및 릴리스 노트/CHANGELOG 갱신; 빌드 스크립트 경로 처리 개선.\\n\\n\\n\\n\",\n  \"active_lock_reason\": null,\n  \"merged\": false,\n  \"mergeable\": true,\n  \"rebaseable\": true,\n  \"mergeable_state\": \"unstable\",\n  \"merged_by\": null,\n  \"comments\": 3,\n  \"review_comments\": 0,\n  \"maintainer_can_modify\": false,\n  \"commits\": 1,\n  \"additions\": 7,\n  \"deletions\": 7,\n  \"changed_files\": 1\n}",
+      "changes": {}
+    },
+    {
       "version": "1.0.51",
       "date": "2025-09-04",
       "timestamp": "2025-09-04T10:11:47Z",
