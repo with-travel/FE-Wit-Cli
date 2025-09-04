@@ -14,6 +14,17 @@ const common = {
 };
 
 const Linear = {
+  LINEAR_BACKGROUND: [
+    '#1F80B8',
+    '#2A8F8F',
+    '#359D66',
+    '#919A3F',
+    '#BF992C',
+    '#ED9718',
+    '#E27623',
+    '#DD6528',
+    '#D7542D',
+  ],
   LINEAR_ORANGE: ['#FF6B26', '#FFAF2F'],
   LINEAR_BLUE: ['#0098F0', '#0DA5AD'],
 };
