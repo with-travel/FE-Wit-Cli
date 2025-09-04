@@ -143,7 +143,7 @@ function AuthStackNavigator() {
       passwordConfirm: '',
       nickname: '',
       name: '',
-      birth: '',
+      birthDate: null as Date | null,
       gender: '',
       phoneNumber: '',
       authCode: '',
