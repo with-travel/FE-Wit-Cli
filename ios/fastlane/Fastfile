@@ -183,14 +183,61 @@ platform :ios do
           -allowProvisioningUpdates
       ]
       
-      # 생성된 IPA 파일 찾기
-      ipa_files = Dir.glob("../../build/ipa/*.ipa")
-      if ipa_files.empty?
+      # 생성된 IPA 파일 찾기 (다중 경로 검색)
+      puts "🔍 현재 작업 디렉토리: #{Dir.pwd}"
+      puts "🔍 Fastfile 위치: #{__dir__}"
+      
+      # 가능한 IPA 경로들 (우선순위 순)
+      search_paths = [
+        "../../build/ipa/*.ipa",                           # 기본 경로
+        File.expand_path("../../build/ipa/*.ipa", __dir__), # 절대경로 변환
+        "../build/ipa/*.ipa",                              # 한 단계 위
+        "build/ipa/*.ipa",                                 # 현재 위치 기준
+        File.expand_path("../../../build/ipa/*.ipa", __dir__), # 더 위
+        "/Users/runner/work/*/build/ipa/*.ipa"             # GitHub Actions 절대경로
+      ]
+      
+      ipa_path = nil
+      
+      search_paths.each_with_index do |search_path, index|
+        puts "🔍 [#{index + 1}/#{search_paths.length}] 검색 중: #{search_path}"
+        
+        found_files = Dir.glob(search_path)
+        puts "   찾은 파일: #{found_files}"
+        
+        if !found_files.empty?
+          ipa_path = found_files.first
+          puts "✅ IPA 파일 발견: #{ipa_path}"
+          break
+        end
+      end
+      
+      if ipa_path.nil?
+        puts "❌ 모든 경로에서 IPA 파일을 찾을 수 없습니다"
+        puts "🔍 디버깅을 위한 디렉토리 구조:"
+        [
+          "../../build",
+          "../build", 
+          "build",
+          "/Users/runner/work"
+        ].each do |dir|
+          if Dir.exist?(File.expand_path(dir, __dir__))
+            puts "📁 #{dir}:"
+            sh "find #{File.expand_path(dir, __dir__)} -name '*.ipa' -o -name 'ipa' -type d 2>/dev/null || true"
+          end
+        end
         UI.user_error!("No IPA file found after export")
       end
       
-      ipa_path = ipa_files.first
-      puts "✅ IPA 생성 완료: #{ipa_path}"
+      # 파일 존재 확인
+      unless File.exist?(ipa_path)
+        UI.user_error!("IPA file does not exist at path: #{ipa_path}")
+      end
+      
+      puts "📊 IPA 파일 정보:"
+      puts "  - 경로: #{ipa_path}"
+      puts "  - 크기: #{File.size(ipa_path)} bytes"
+      puts "  - 존재 확인: #{File.exist?(ipa_path) ? '✅' : '❌'}"
       
     rescue => e
       puts "❌ xcodebuild exportArchive 실패: #{e.message}"
@@ -211,8 +258,6 @@ platform :ios do
       
       UI.user_error!("IPA export failed: #{e.message}")
     end
-    
-    puts "✅ IPA 생성 완료: #{ipa_path}"
 
     # 🎯 2단계: .ipa 파일을 TestFlight에 업로드
     puts "🚀 TestFlight 업로드 시작..."
