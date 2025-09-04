@@ -1,6 +1,14 @@
 {
   "releases": [
     {
+      "version": "1.0.51",
+      "date": "2025-09-04",
+      "timestamp": "2025-09-04T10:11:47Z",
+      "pr_number": 99,
+      "raw_summary": "\"body_html\": \"\\nSummary by CodeRabbit\\n\\nNew Features\\n\\n회원가입 이메일 중복확인 기능 추가: 버튼으로 확인, 진행 상태 표시(확인 중/사용 가능/중복), 결과에 따른 안내 메시지 제공.\\n중복 미확인 또는 중복일 경우 다음 단계 진행 차단; 사용 가능 시에만 진행.\\n이메일 필수 및 형식 검증 메시지 강화.\\n\\n\\nStyle\\n\\n이메일 입력란과 중복확인 버튼을 한 줄로 배치, 컨테이너 패딩·간격 조정.\\n버튼/텍스트 스타일 추가 및 진행 상태에 따른 비활성화 처리.\\n\\n\\n\\n\",\n  \"active_lock_reason\": null,\n  \"merged\": false,\n  \"mergeable\": true,\n  \"rebaseable\": true,\n  \"mergeable_state\": \"unstable\",\n  \"merged_by\": null,\n  \"comments\": 3,\n  \"review_comments\": 0,\n  \"maintainer_can_modify\": false,\n  \"commits\": 1,\n  \"additions\": 121,\n  \"deletions\": 13,\n  \"changed_files\": 1\n}",
+      "changes": {}
+    },
+    {
       "version": "1.0.50",
       "timestamp": "2025-09-04T08:27:56Z",
       "pr_number": "97",
