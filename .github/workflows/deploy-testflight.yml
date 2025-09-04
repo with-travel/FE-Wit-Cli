@@ -406,19 +406,38 @@ jobs:
           echo "  - 파일 크기: $([ -f "$API_KEY_PATH" ] && du -h "$API_KEY_PATH" | cut -f1 || echo "N/A")"
           echo "🔑 ========================================"
 
-      - name: Download Release Notes
-        uses: actions/download-artifact@v4
-        with:
-          name: release-notes-${{ steps.version.outputs.version_name }}
-          path: .
-          github-token: ${{ secrets.PAT_TOKEN }}
-
-      - name: Read changelog file for TestFlight
+      - name: Generate Release Notes from CHANGELOG.md
         id: read_changelog
         run: |
-          echo "changelog<<EOF" >> $GITHUB_OUTPUT
-          cat release_notes.txt >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          echo "📋 CHANGELOG.md에서 최신 릴리즈 노트 생성 중..."
+
+          VERSION="${{ steps.version.outputs.version_name }}"
+
+          # CHANGELOG.md에서 최신 버전 부분만 추출
+          if [ -f "CHANGELOG.md" ]; then
+            # 최신 버전 섹션을 추출 (## v버전부터 다음 ## v버전 또는 파일 끝까지)
+            CHANGELOG_CONTENT=$(awk "/## v${VERSION}/{flag=1; next} /## v/{flag=0} flag" CHANGELOG.md | sed '/^$/d' | head -20)
+            
+            if [ -n "$CHANGELOG_CONTENT" ]; then
+              echo "✅ CHANGELOG.md에서 릴리즈 노트 추출 완료"
+              echo "changelog<<EOF" >> $GITHUB_OUTPUT
+              echo "$CHANGELOG_CONTENT" >> $GITHUB_OUTPUT
+              echo "EOF" >> $GITHUB_OUTPUT
+            else
+              echo "⚠️ CHANGELOG.md에서 해당 버전을 찾을 수 없어 기본 메시지 사용"
+              echo "changelog<<EOF" >> $GITHUB_OUTPUT
+              echo "새로운 버전 v${VERSION}이 출시되었습니다." >> $GITHUB_OUTPUT
+              echo "EOF" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "⚠️ CHANGELOG.md 파일이 없어 기본 메시지 사용"
+            echo "changelog<<EOF" >> $GITHUB_OUTPUT
+            echo "새로운 버전 v${VERSION}이 출시되었습니다." >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+
+          echo "📋 생성된 릴리즈 노트 미리보기:"
+          echo "$(echo "$CHANGELOG_CONTENT" | head -5 | tr '\n' ' ')..."
 
       - name: 🚀 Fastlane TestFlight 직접 업로드
         run: |

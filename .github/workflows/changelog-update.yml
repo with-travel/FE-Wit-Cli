@@ -164,27 +164,59 @@ jobs:
               
               detected_categories = {}
               
-              # strong 태그 안의 카테고리 제목들 찾기
-              strong_texts = re.findall(r'<strong[^>]*>([^<]+)</strong>', html_content, re.IGNORECASE)
-              print(f"🎯 발견된 strong 태그들: {strong_texts}")
+              # 다양한 패턴으로 카테고리와 항목 찾기
+              patterns = [
+                  # 패턴 1: • 카테고리명 (불릿 포인트)
+                  r'•\s*([^•\n]+)',
+                  # 패턴 2: strong 태그
+                  r'<strong[^>]*>([^<]+)</strong>',
+                  # 패턴 3: li 태그 안의 strong
+                  r'<li[^>]*>([^<\n]+)',
+                  # 패턴 4: 일반 텍스트 라인
+                  r'^([A-Za-z\s]+)$'
+              ]
               
-              for strong_text in strong_texts:
-                  clean_text = strong_text.strip()
-                  print(f"🏷️ 처리 중인 카테고리: '{clean_text}'")
+              # HTML을 줄 단위로 분석
+              lines = html_content.split('\n')
+              current_category = None
+              
+              for line in lines:
+                  line = line.strip()
+                  if not line:
+                      continue
                   
-                  items = extract_items_from_section(html_content, clean_text)
-                  if items:
-                      # 카테고리 키를 안전한 형태로 변환
-                      safe_key = re.sub(r'[^a-zA-Z0-9가-힣]', '_', clean_text.lower()).strip('_')
-                      if not safe_key:
-                          safe_key = f"category_{len(detected_categories)}"
-                      
-                      print(f"✅ 카테고리 추가: '{clean_text}' -> '{safe_key}' ({len(items)}개 아이템)")
-                      detected_categories[safe_key] = items
-                  else:
-                      print(f"❌ '{clean_text}' 카테고리에서 아이템을 찾을 수 없음")
+                  # HTML 태그 제거
+                  clean_line = re.sub(r'<[^>]*>', '', line).strip()
+                  clean_line = html.unescape(clean_line)
+                  
+                  print(f"🔍 처리 중인 라인: '{clean_line[:50]}...'")
+                  
+                  # 카테고리 감지 (New Features, Bug Fixes 등)
+                  if any(keyword in clean_line for keyword in ['New Features', 'Bug Fixes', 'Style', 'Refactor', 'Chores']):
+                      current_category = clean_line
+                      safe_key = re.sub(r'[^a-zA-Z0-9가-힣]', '_', current_category.lower()).strip('_')
+                      if safe_key not in detected_categories:
+                          detected_categories[safe_key] = []
+                      print(f"✅ 새 카테고리 발견: '{current_category}' -> '{safe_key}'")
+                      continue
+                  
+                  # 아이템 감지 (o 또는 ○로 시작하는 항목들)
+                  if current_category and (clean_line.startswith('o ') or clean_line.startswith('○ ') or len(clean_line) > 10):
+                      item = clean_line.lstrip('o ○ ').strip()
+                      if item and len(item) > 3:  # 의미있는 내용만
+                          safe_key = re.sub(r'[^a-zA-Z0-9가-힣]', '_', current_category.lower()).strip('_')
+                          if safe_key not in detected_categories:
+                              detected_categories[safe_key] = []
+                          detected_categories[safe_key].append(item)
+                          print(f"  📝 아이템 추가: '{item[:30]}...'")
+              
+              # 빈 카테고리 제거
+              detected_categories = {k: v for k, v in detected_categories.items() if v}
               
               print(f"🎯 최종 감지된 카테고리 수: {len(detected_categories)}")
+              for category, items in detected_categories.items():
+                  print(f"  📂 {category}: {len(items)}개 아이템")
+              
               return detected_categories
 
           def main():
@@ -268,16 +300,22 @@ jobs:
                       # 카테고리별로 정리된 형식으로 출력 (Expo 방식)
                       for category_key, items in release['changes'].items():
                           if items:
-                              # 카테고리명을 한국어로 변환
+                              # 카테고리명을 한국어로 변환 (영어 원문 기준)
                               category_titles = {
-                                  'chores': '작업 정리',
-                                  'features': '새로운 기능', 
-                                  'bug_fixes': '버그 수정',
-                                  'documentation': '문서화',
+                                  'new_features': '새로운 기능',
+                                  'bug_fixes': '버그 수정', 
+                                  'style': '스타일 개선',
                                   'refactor': '리팩토링',
-                                  'style': '스타일링',
+                                  'chores': '작업 정리',
+                                  'features': '새로운 기능',
+                                  'documentation': '문서화',
                                   'test': '테스트',
-                                  'general': '일반'
+                                  'general': '일반',
+                                  # 추가 매핑
+                                  'ui': 'UI 개선',
+                                  'performance': '성능 개선',
+                                  'security': '보안',
+                                  'api': 'API'
                               }
                               
                               title = category_titles.get(category_key.lower(), category_key.replace('_', ' ').title())
@@ -308,13 +346,18 @@ jobs:
                 "## [" + .version + "] - " + .timestamp[0:10] + "\n" +
                 (.changes | to_entries | map(
                   "\n**" + (
-                    if .key == "chores" then "작업 정리"
-                    elif .key == "features" then "새로운 기능"
+                    if .key == "new_features" then "새로운 기능"
                     elif .key == "bug_fixes" then "버그 수정"
-                    elif .key == "documentation" then "문서화"
+                    elif .key == "style" then "스타일 개선"
                     elif .key == "refactor" then "리팩토링"
-                    elif .key == "style" then "스타일링"
+                    elif .key == "chores" then "작업 정리"
+                    elif .key == "features" then "새로운 기능"
+                    elif .key == "documentation" then "문서화"
                     elif .key == "test" then "테스트"
+                    elif .key == "ui" then "UI 개선"
+                    elif .key == "performance" then "성능 개선"
+                    elif .key == "security" then "보안"
+                    elif .key == "api" then "API"
                     else (.key | gsub("_"; " ") | ascii_upcase)
                     end
                   ) + "**\n" + 
@@ -346,18 +389,17 @@ jobs:
           git tag "v${{ steps.versioning.outputs.new_version }}"
           git push origin "v${{ steps.versioning.outputs.new_version }}"
 
-      - name: Save Release Notes for deployment
-        id: release_notes
+      - name: Verify CHANGELOG generation
         run: |
-          # CHANGELOG.md에서 최신 릴리즈 부분만 추출
-          awk '/## v${{ steps.versioning.outputs.new_version }}/{flag=1; next}/## v/{flag=0}flag' CHANGELOG.md > release_notes.txt
-          cat release_notes.txt
-
-      - name: Upload Release Notes artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-notes-${{ steps.versioning.outputs.new_version }}
-          path: release_notes.txt
+          echo "📋 생성된 CHANGELOG.md 확인:"
+          if [ -f "CHANGELOG.md" ]; then
+            echo "✅ CHANGELOG.md 파일 존재"
+            echo "📄 최신 버전 내용 미리보기:"
+            head -20 CHANGELOG.md
+          else
+            echo "❌ CHANGELOG.md 파일이 생성되지 않았습니다!"
+            exit 1
+          fi
 
       - name: 🎉 CHANGELOG Update Success
         run: |
