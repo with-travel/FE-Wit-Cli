@@ -81,54 +81,60 @@ function AuthServerSignupPhoneAuthorizationScreen({
       </View>
 
       <View style={styles.infoContainer}>
-        <Controller
-          control={control}
-          name="phoneNumber"
-          render={({
-            field: { onChange, onBlur, value },
-            fieldState: { error },
-          }) => (
-            <View>
-              <InputField
-                label="휴대폰 인증"
-                placeholder="핸드폰 번호를 입력해주세요."
-                onBlur={onBlur}
-                onChangeText={text => onChange(formatPhoneNumber(text))}
-                value={value}
-                keyboardType="phone-pad"
-                maxLength={13}
-                error={error?.message}
-              />
-              {isSent && (
-                <Text style={styles.sentMessage}>
-                  인증 번호가 전송되었습니다.
-                </Text>
-              )}
-            </View>
-          )}
-          rules={{ required: true, validate: validatePhoneNumber }}
-        />
-        {isSent && (
+        <View style={{ marginBottom: 24 }}>
           <Controller
             control={control}
-            name="authCode"
+            name="phoneNumber"
             render={({
               field: { onChange, onBlur, value },
               fieldState: { error },
             }) => (
-              <InputField
-                label="인증번호"
-                placeholder="인증번호 6자리를 입력해주세요."
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-                keyboardType="number-pad"
-                maxLength={6}
-                error={error?.message}
-              />
+              <View>
+                <InputField
+                  label="휴대폰 인증"
+                  placeholder="핸드폰 번호를 입력해주세요."
+                  onBlur={onBlur}
+                  onChangeText={text => onChange(formatPhoneNumber(text))}
+                  value={value}
+                  keyboardType="phone-pad"
+                  maxLength={13}
+                  error={error?.message}
+                  disabled={isVerified}
+                />
+                {isSent && (
+                  <Text style={styles.sentMessage}>
+                    인증 번호가 전송되었습니다.
+                  </Text>
+                )}
+              </View>
             )}
-            rules={{ required: true, minLength: 6 }}
+            rules={{ required: true, validate: validatePhoneNumber }}
           />
+        </View>
+        {isSent && (
+          <View style={{ marginBottom: 16 }}>
+            <Controller
+              control={control}
+              name="authCode"
+              render={({
+                field: { onChange, onBlur, value },
+                fieldState: { error },
+              }) => (
+                <InputField
+                  label="인증번호"
+                  placeholder="인증번호 6자리를 입력해주세요."
+                  onBlur={onBlur}
+                  onChangeText={onChange}
+                  value={value}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  error={error?.message}
+                  disabled={isVerified}
+                />
+              )}
+              rules={{ required: true, minLength: 6 }}
+            />
+          </View>
         )}
         {isVerified && (
           <Text style={styles.verifiedMessage}>인증되었습니다</Text>
@@ -166,7 +172,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   infoContainer: {
-    gap: 8,
+    paddingHorizontal: 20,
   },
   authButton: {
     marginTop: 10,
