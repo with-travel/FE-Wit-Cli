@@ -78,19 +78,42 @@ jobs:
             exit 1
           fi
 
-      - name: Build and Test iOS Project
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Select Xcode 16
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.1'
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2.2'
+
+      - name: Fix Xcode Project and Install CocoaPods
         run: |
-          echo "🍎 iOS 프로젝트 빌드 테스트 시작..."
+          gem install cocoapods -N
+          echo "🧹 CocoaPods 캐시 정리 중..."
           cd ios
 
-          # CocoaPods 캐시 정리 및 설치
-          echo "🧹 CocoaPods 캐시 정리 중..."
+          # 기존 Pod 관련 파일들 정리
           rm -rf Pods/
           rm -rf build/
           rm -f Podfile.lock
+
+          # CocoaPods 캐시 정리
           pod cache clean --all
 
           echo "🔧 Xcode 프로젝트 파일 검증 및 수정 중..."
+
+          # project.pbxproj 파일에서 잘못된 shellScript 배열 형태를 sed로 수정
           PROJECT_FILE="Wit.xcodeproj/project.pbxproj"
 
           # 백업 생성
@@ -99,10 +122,13 @@ jobs:
           # shellScript가 배열 형태로 되어 있는지 확인하고 수정
           if grep -q 'shellScript = (' "$PROJECT_FILE"; then
             echo "⚠️ 잘못된 shellScript 배열 형태 발견, sed로 수정 중..."
+            
+            # sed를 사용한 간단한 수정 (배열을 문자열로 변환)
             sed -i.tmp 's/shellScript = (/shellScript = "/g' "$PROJECT_FILE"
             sed -i.tmp 's/);$/";/g' "$PROJECT_FILE"
             sed -i.tmp 's/",$/\\n/g' "$PROJECT_FILE"
             sed -i.tmp 's/",$//g' "$PROJECT_FILE"
+            
             rm "${PROJECT_FILE}.tmp"
             echo "✅ project.pbxproj 수정 완료"
           else
@@ -112,16 +138,23 @@ jobs:
           echo "📦 Pod 재설치 중..."
           pod install --repo-update --verbose
 
-          echo "🔨 iOS 프로젝트 빌드 중..."
-          xcodebuild -workspace Wit.xcworkspace \
-                     -scheme Wit \
-                     -configuration Debug \
-                     -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
-                     build \
-                     CODE_SIGNING_REQUIRED=NO \
-                     CODE_SIGNING_ALLOWED=NO
+      - name: Build iOS (Simulator)
+        env:
+          RCT_NO_LAUNCH_PACKAGER: '1'
+        run: |
+          xcodebuild \
+            -workspace ios/Wit.xcworkspace \
+            -scheme Wit \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -destination 'platform=iOS Simulator,name=iPhone SE (3rd generation)' \
+            -derivedDataPath build \
+            clean build
 
-          echo "✅ iOS 빌드 테스트 완료"
+      - name: 🎉 Build Test Success
+        run: |
+          echo "✅ 빌드 테스트가 성공했습니다!"
+          echo "📋 다음 단계: CodeRabbit Summary 감지를 시작합니다."
 
       - name: Request CodeRabbit Summary
         run: |
