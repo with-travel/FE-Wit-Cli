@@ -11,8 +11,9 @@ reviews:
   auto_review:
     enabled: true
     drafts: false
-    base_branches:
-      - main
-      - release
+    # base_branches:
+    #   - main
+    #   - release
+    base_branches: ['main', 'release']
 chat:
   auto_reply: true
