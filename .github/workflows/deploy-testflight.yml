@@ -698,16 +698,51 @@ jobs:
             echo "No README changes to commit."
           fi
 
-      - name: Get PR Number and Merge
+      - name: Get PR Number and Auto Merge
         run: |
+          echo "🔍 PR 번호 추출 및 자동 병합 준비 중..."
+
           # workflow_run에서 PR 번호 추출
           PR_NUMBER=$(gh api repos/${{ github.repository }}/pulls \
             --jq '.[] | select(.head.sha == "${{ github.event.workflow_run.head_sha }}") | .number' \
             | head -1)
 
           if [ -n "$PR_NUMBER" ]; then
-            echo "🎉 모든 작업이 성공했습니다. PR #$PR_NUMBER을 병합합니다."
-            gh pr merge $PR_NUMBER --squash --admin
+            echo "📋 PR #$PR_NUMBER 정보 확인 중..."
+            
+            # PR 상세 정보 가져오기
+            PR_INFO=$(gh pr view $PR_NUMBER --json state,mergeable,baseRefName,headRefName)
+            PR_STATE=$(echo "$PR_INFO" | jq -r '.state')
+            PR_MERGEABLE=$(echo "$PR_INFO" | jq -r '.mergeable')
+            BASE_BRANCH=$(echo "$PR_INFO" | jq -r '.baseRefName')
+            HEAD_BRANCH=$(echo "$PR_INFO" | jq -r '.headRefName')
+            
+            echo "📊 PR 상태:"
+            echo "  - 상태: $PR_STATE"
+            echo "  - 병합 가능: $PR_MERGEABLE"
+            echo "  - 베이스 브랜치: $BASE_BRANCH"
+            echo "  - 헤드 브랜치: $HEAD_BRANCH"
+            
+            # main -> release PR인지 확인
+            if [ "$BASE_BRANCH" = "release" ] && [ "$HEAD_BRANCH" = "main" ]; then
+              echo "✅ main -> release PR 확인됨"
+              
+              if [ "$PR_STATE" = "OPEN" ] && [ "$PR_MERGEABLE" = "MERGEABLE" ]; then
+                echo "🎉 모든 배포 과정이 성공했습니다. PR #$PR_NUMBER을 자동 병합합니다."
+                
+                # 병합 실행
+                gh pr merge $PR_NUMBER --squash --admin --delete-branch
+                
+                echo "✅ PR #$PR_NUMBER 병합 완료!"
+                echo "🗑️ main 브랜치 삭제 완료 (--delete-branch)"
+              else
+                echo "⚠️ PR 병합 조건 불만족:"
+                echo "  - 상태가 OPEN이 아니거나 병합 불가능한 상태입니다"
+              fi
+            else
+              echo "ℹ️ main -> release PR이 아닙니다. 자동 병합을 건너뜁니다."
+              echo "  - 현재: $HEAD_BRANCH -> $BASE_BRANCH"
+            fi
           else
             echo "⚠️ PR 번호를 찾을 수 없어 자동 병합을 건너뜁니다."
           fi
