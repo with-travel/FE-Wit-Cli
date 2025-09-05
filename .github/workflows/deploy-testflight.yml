@@ -580,113 +580,92 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           echo "latest_version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Update README.md
+      - name: Update README.md (Flutter 앱 방식)
         run: |
-          VERSION="${{ steps.version.outputs.latest_version }}"
-          TIMESTAMP=$(date +'%Y-%m-%d')
-          VERSION_TEXT="v${VERSION} (${TIMESTAMP})"
+          echo "📄 README.md 업데이트 중 (Flutter 앱 방식)..."
 
-          echo "🔍 CHANGELOG.json에서 최신 릴리즈 정보 추출 중..."
+          python3 << 'PYTHON_SCRIPT'
+          import json
+          import os
 
-          # jq 설치 확인
-          if ! command -v jq &> /dev/null; then
-            echo "📦 jq 설치 중..."
-            sudo apt-get update && sudo apt-get install -y jq
-          fi
+          def get_category_title(key):
+              """카테고리 키를 한국어 제목으로 변환 (Flutter 앱 방식)"""
+              category_titles = {
+                  'new_features': '신규 기능',
+                  'bug_fixes': '버그 수정', 
+                  'style': '스타일',
+                  'refactor': '리팩토링',
+                  'chores': '작업 정리',
+                  'documentation': '문서',
+                  'tests': '테스트',
+                  'performance': '성능',
+                  'security': '보안',
+                  'general': '일반'
+              }
+              return category_titles.get(key.lower(), key.replace('_', ' ').title())
 
-          # CHANGELOG.json에서 최신 릴리즈 정보 추출 (jq를 사용한 안전한 방식)
-          if [ -f "CHANGELOG.json" ]; then
-            echo "📋 CHANGELOG.json 파일을 찾았습니다."
-            
-            # 최신 릴리즈가 존재하는지 확인
-            RELEASE_COUNT=$(jq '.releases | length' CHANGELOG.json 2>/dev/null || echo "0")
-            
-            if [ "$RELEASE_COUNT" -gt 0 ]; then
-              echo "📄 최신 릴리즈 정보 추출 중..."
+          try:
+              # CHANGELOG.json에서 최신 버전 정보 추출
+              with open('CHANGELOG.json', 'r', encoding='utf-8') as f:
+                  data = json.load(f)
               
-              # 각 카테고리별로 변경사항 추출 (안전한 jq 구문)
-              NEW_FEATURES=$(jq -r '.releases[0].changes.new_features[]? // empty' CHANGELOG.json 2>/dev/null | sed 's/^/- /')
-              BUG_FIXES=$(jq -r '.releases[0].changes.bug_fixes[]? // empty' CHANGELOG.json 2>/dev/null | sed 's/^/- /')
-              STYLE=$(jq -r '.releases[0].changes.style[]? // empty' CHANGELOG.json 2>/dev/null | sed 's/^/- /')
-              REFACTOR=$(jq -r '.releases[0].changes.refactor[]? // empty' CHANGELOG.json 2>/dev/null | sed 's/^/- /')
-              CHORES=$(jq -r '.releases[0].changes.chores[]? // empty' CHANGELOG.json 2>/dev/null | sed 's/^/- /')
-              FEATURES=$(jq -r '.releases[0].changes.features[]? // empty' CHANGELOG.json 2>/dev/null | sed 's/^/- /')
-              FIXES=$(jq -r '.releases[0].changes.fixes[]? // empty' CHANGELOG.json 2>/dev/null | sed 's/^/- /')
+              if not data.get('releases'):
+                  print("❌ CHANGELOG.json에 릴리즈 정보가 없습니다")
+                  exit(1)
               
-              # 변경사항 조합
-              LATEST_CHANGES=""
+              latest_release = data['releases'][0]
+              version = latest_release.get('version', 'Unknown')
+              date = latest_release.get('date', latest_release.get('timestamp', '')[:10])
+              pr_number = latest_release.get('pr_number', 'N/A')
+              changes = latest_release.get('changes', {})
               
-              if [ -n "$NEW_FEATURES" ]; then
-                LATEST_CHANGES="${LATEST_CHANGES}**새로운 기능**\n${NEW_FEATURES}\n\n"
-              fi
+              print(f"📋 최신 버전: v{version} ({date})")
               
-              if [ -n "$FEATURES" ]; then
-                LATEST_CHANGES="${LATEST_CHANGES}**새로운 기능**\n${FEATURES}\n\n"
-              fi
+              # README.md 생성 (Flutter 앱 방식)
+              with open('README.md', 'w', encoding='utf-8') as f:
+                  f.write("# Wit App\n\n")
+                  f.write("여행 친구 찾기\n\n")
+                  f.write("---\n\n")
+                  f.write(f"## 최신 버전: v{version} ({date})\n\n")
+                  f.write(f"**PR:** #{pr_number}\n\n")
+                  
+                  # 변경사항 섹션
+                  f.write("### 변경 사항\n\n")
+                  
+                  if changes and any(items for items in changes.values() if items):
+                      for category_key, items in changes.items():
+                          if items and len(items) > 0:
+                              title = get_category_title(category_key)
+                              f.write(f"**{title}**\n")
+                              for item in items:
+                                  f.write(f"- {item}\n")
+                              f.write("\n")
+                  else:
+                      f.write(f"**일반**\n")
+                      f.write(f"- PR #{pr_number}의 변경사항이 반영되었습니다.\n\n")
+                  
+                  # 이전 변경사항 링크
+                  f.write("### 이전 변경 사항\n\n")
+                  f.write("[이전 변경사항 보기](PREVIOUS_CHANGES.md)\n\n")
+                  
+                  # 문서 섹션
+                  f.write("**DOCUMENTATION**\n\n")
+                  f.write("- Expo -> Cli로 변경되었습니다.\n\n")
+                  f.write("---\n\n")
+                  f.write("<!-- [이전 변경사항 보기](PREVIOUS_CHANGES.md) -->\n")
               
-              if [ -n "$BUG_FIXES" ]; then
-                LATEST_CHANGES="${LATEST_CHANGES}**버그 수정**\n${BUG_FIXES}\n\n"
-              fi
+              print("✅ README.md 업데이트 완료 (Flutter 앱 방식)")
               
-              if [ -n "$FIXES" ]; then
-                LATEST_CHANGES="${LATEST_CHANGES}**수정사항**\n${FIXES}\n\n"
-              fi
+              # GitHub Actions 출력 설정
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                  f.write(f"latest_version={version}\n")
               
-              if [ -n "$STYLE" ]; then
-                LATEST_CHANGES="${LATEST_CHANGES}**스타일 개선**\n${STYLE}\n\n"
-              fi
-              
-              if [ -n "$REFACTOR" ]; then
-                LATEST_CHANGES="${LATEST_CHANGES}**리팩토링**\n${REFACTOR}\n\n"
-              fi
-              
-              if [ -n "$CHORES" ]; then
-                LATEST_CHANGES="${LATEST_CHANGES}**작업 정리**\n${CHORES}\n\n"
-              fi
-              
-              # 변경사항이 없는 경우 기본 메시지
-              if [ -z "$LATEST_CHANGES" ]; then
-                LATEST_CHANGES="**일반**\n- 새로운 버전이 출시되었습니다."
-              fi
-              
-              echo "✅ CHANGELOG.json에서 변경사항 추출 완료"
-            else
-              LATEST_CHANGES="**일반**\n- 새로운 버전이 출시되었습니다."
-              echo "⚠️ CHANGELOG.json에 릴리즈 정보가 없어 기본 메시지 사용"
-            fi
-          else
-            LATEST_CHANGES="**일반**\n- 새로운 버전이 출시되었습니다."
-            echo "⚠️ CHANGELOG.json 파일이 없어 기본 메시지 사용"
-          fi
-
-          # README.md 업데이트
-          cat > README.md << EOF
-          # Wit App
-
-          여행 친구 찾기
-
-          ---
-
-          ## 최신 버전: ${VERSION_TEXT}
-
-          ### 변경 사항
-
-          ${LATEST_CHANGES}
-
-          ### 이전 변경 사항
-
-          [이전 변경사항 보기](PREVIOUS_CHANGES.md)
-
-          **DOCUMENTATION**
-
-          - Expo -> Cli로 변경되었습니다.
-
-          ---
-
-          <!-- [이전 변경사항 보기](PREVIOUS_CHANGES.md) -->
-          EOF
-
-          echo "✅ README.md 업데이트 완료"
+          except Exception as e:
+              print(f"❌ README.md 업데이트 실패: {e}")
+              import traceback
+              print(f"📋 상세 오류:\n{traceback.format_exc()}")
+              exit(1)
+          PYTHON_SCRIPT
 
       - name: Commit and push README update
         run: |
