@@ -3,6 +3,15 @@
     {
       "version": "1.0.54",
       "date": "2025-09-05",
+      "timestamp": "2025-09-05T15:33:52Z",
+      "pr_number": 105,
+      "project_type": "react-native",
+      "raw_summary": "\"body_html\": \"\\nSummary by CodeRabbit\\n\\n\\n새 기능\\n\\n앱의 포어그라운드/백그라운드 전환 상태를 추적해 현재 상태를 보다 정확히 반영합니다.\\n사용자가 앱으로 복귀했는지 여부(isComeBack)를 감지해 관련 화면 흐름과 동작을 자연스럽게 유지합니다.\\n상태 표시를 일관되게 동기화해 화면 갱신 및 인터랙션 경험을 안정화했습니다.\\n\\n\\n\\n잡업(Chores)\\n\\niOS 빌드 및 CI 설정을 개선해 빌드 안정성과 재현성을 높였습니다.\\n\\n\\n\\n\",\n  \"active_lock_reason\": null,\n  \"merged\": true,\n  \"mergeable\": null,\n  \"rebaseable\": null,\n  \"mergeable_state\": \"unknown\",\n  \"merged_by\": {\n    \"login\": \"juhyunk0820\",\n    \"id\": 47581536,\n    \"node_id\": \"MDQ6VXNlcjQ3NTgxNTM2\",\n    \"avatar_url\": \"https://avatars.githubusercontent.com/u/47581536?v=4\",\n    \"gravatar_id\": \"\",\n    \"url\": \"https://api.github.com/users/juhyunk0820\",\n    \"html_url\": \"https://github.com/juhyunk0820\",\n    \"followers_url\": \"https://api.github.com/users/juhyunk0820/followers\",\n    \"following_url\": \"https://api.github.com/users/juhyunk0820/following{/other_user}\",\n    \"gists_url\": \"https://api.github.com/users/juhyunk0820/gists{/gist_id}\",\n    \"starred_url\": \"https://api.github.com/users/juhyunk0820/starred{/owner}{/repo}\",\n    \"subscriptions_url\": \"https://api.github.com/users/juhyunk0820/subscriptions\",\n    \"organizations_url\": \"https://api.github.com/users/juhyunk0820/orgs\",\n    \"repos_url\": \"https://api.github.com/users/juhyunk0820/repos\",\n    \"events_url\": \"https://api.github.com/users/juhyunk0820/events{/privacy}\",\n    \"received_events_url\": \"https://api.github.com/users/juhyunk0820/received_events\",\n    \"type\": \"User\",\n    \"user_view_type\": \"public\",\n    \"site_admin\": false\n  },\n  \"comments\": 4,\n  \"review_comments\": 0,\n  \"maintainer_can_modify\": false,\n  \"commits\": 2,\n  \"additions\": 46,\n  \"deletions\": 4,\n  \"changed_files\": 5\n}",
+      "changes": {}
+    },
+    {
+      "version": "1.0.54",
+      "date": "2025-09-05",
       "timestamp": "2025-09-05T15:11:32Z",
       "pr_number": 105,
       "project_type": "react-native",
@@ -469,9 +478,9 @@
     }
   ],
   "metadata": {
-    "lastUpdated": "2025-09-05T15:11:32Z",
+    "lastUpdated": "2025-09-05T15:33:52Z",
     "currentVersion": "1.0.54",
     "projectType": "react-native",
-    "totalReleases": 49
+    "totalReleases": 50
   }
 }
