@@ -171,7 +171,7 @@ jobs:
           echo "📄 Summary 섹션 미리보기:"
           head -10 summary_section.html
 
-          # Python으로 동적 파싱
+          # Python으로 강화된 파싱 (Flutter 앱 방식 적용)
           cat > parse_changelog.py << 'EOF'
           import re
           import json
@@ -180,114 +180,116 @@ jobs:
           import os
           from datetime import datetime
 
-          def extract_items_from_section(html_content, section_title):
-              """특정 섹션의 아이템들을 추출"""
-              print(f"📋 '{section_title}' 섹션에서 아이템 추출 중...")
+          def parse_coderabbit_summary(raw_text):
+              """CodeRabbit Summary를 파싱하여 카테고리별로 분류"""
+              print("🔍 CodeRabbit Summary 파싱 시작...")
+              print(f"📄 원본 텍스트 길이: {len(raw_text)} characters")
               
-              # 다양한 패턴으로 섹션 찾기
-              patterns = [
-                  f'<strong[^>]*>{re.escape(section_title)}[^<]*</strong>',
-                  f'<li[^>]*><strong[^>]*>{re.escape(section_title)}[^<]*</strong>',
-                  f'<p[^>]*><strong[^>]*>{re.escape(section_title)}[^<]*</strong></p>'
-              ]
+              # 텍스트 정리
+              text = raw_text.strip()
+              lines = text.split('\n')
               
-              section_match = None
-              for pattern in patterns:
-                  section_match = re.search(pattern, html_content, re.IGNORECASE)
-                  if section_match:
-                      print(f"✅ 패턴 매치: {pattern[:50]}...")
-                      break
-              
-              if not section_match:
-                  print(f"❌ '{section_title}' 섹션을 찾을 수 없습니다")
-                  return []
-              
-              # 섹션 이후의 ul 태그 찾기
-              after_section = html_content[section_match.end():]
-              ul_match = re.search(r'<ul[^>]*>(.*?)</ul>', after_section, re.DOTALL)
-              
-              if not ul_match:
-                  print(f"❌ '{section_title}' 섹션 이후 ul 태그를 찾을 수 없습니다")
-                  return []
-              
-              # li 태그들에서 텍스트 추출
-              ul_content = ul_match.group(1)
-              li_items = re.findall(r'<li[^>]*>(.*?)</li>', ul_content, re.DOTALL)
-              
-              items = []
-              for item in li_items:
-                  # HTML 태그 제거하고 텍스트만 추출
-                  clean_text = re.sub(r'<[^>]*>', '', item)
-                  clean_text = html.unescape(clean_text).strip()
-                  if clean_text:
-                      items.append(clean_text)
-                      print(f"  📝 아이템: {clean_text[:50]}...")
-              
-              print(f"✅ '{section_title}' 섹션에서 {len(items)}개 아이템 추출 완료")
-              return items
-
-          def detect_categories(content):
-              """텍스트에서 동적으로 카테고리 감지 - 개선된 방식"""
-              print("🔍 텍스트에서 카테고리 감지 시작...")
-              print(f"📄 텍스트 내용 길이: {len(content)} characters")
+              # 디버깅을 위한 원본 텍스트 출력
+              print("📋 원본 텍스트 내용:")
+              print("=" * 60)
+              for i, line in enumerate(lines[:20]):  # 처음 20줄만 출력
+                  print(f"{i+1:2d}: {line}")
+              print("=" * 60)
               
               detected_categories = {}
-              
-              # 텍스트를 줄별로 분리
-              lines = content.split('\n')
               current_category = None
               current_items = []
               
-              for line in lines:
+              # 한국어 카테고리 매핑
+              category_mapping = {
+                  '신규 기능': 'new_features',
+                  '새로운 기능': 'new_features', 
+                  'New Features': 'new_features',
+                  'Features': 'new_features',
+                  
+                  '버그 수정': 'bug_fixes',
+                  'Bug Fixes': 'bug_fixes',
+                  'Fixes': 'bug_fixes',
+                  '수정사항': 'bug_fixes',
+                  
+                  '스타일': 'style',
+                  'Style': 'style',
+                  'UI/UX': 'style',
+                  
+                  '리팩토링': 'refactor',
+                  'Refactor': 'refactor',
+                  
+                  '작업': 'chores',
+                  '작업(Chores)': 'chores',
+                  'Chores': 'chores',
+                  '기타': 'chores',
+                  
+                  '문서': 'documentation',
+                  '문서화': 'documentation',
+                  'Documentation': 'documentation',
+                  'Docs': 'documentation',
+                  
+                  '테스트': 'tests',
+                  'Tests': 'tests',
+                  'Testing': 'tests',
+                  
+                  '성능': 'performance',
+                  'Performance': 'performance',
+                  
+                  '보안': 'security',
+                  'Security': 'security'
+              }
+              
+              for line_num, line in enumerate(lines):
                   line = line.strip()
                   if not line:
                       continue
                   
-                  print(f"🔍 처리 중인 라인: '{line[:50]}...'")
+                  print(f"🔍 [{line_num+1}] 처리 중: '{line}'")
                   
-                  # 카테고리 제목 감지 (- 로 시작하는 주요 섹션들)
-                  if line in ['New Features', 'Bug Fixes', 'Style', 'Refactor', 'Chores', 'Features', 'Fixes', 'Changes', 'Documentation', 'Tests', 'Performance', 'Security']:
-                      # 이전 카테고리가 있다면 저장
-                      if current_category and current_items:
-                          safe_key = re.sub(r'[^a-zA-Z0-9가-힣]', '_', current_category.lower()).strip('_')
-                          detected_categories[safe_key] = {
-                              'title': current_category,
-                              'items': current_items.copy()
-                          }
-                          print(f"✅ 카테고리 저장: '{current_category}' -> '{safe_key}' ({len(current_items)}개 아이템)")
-                      
-                      # 새 카테고리 시작
-                      current_category = line
-                      current_items = []
-                      print(f"🏷️ 새 카테고리 시작: '{current_category}'")
-                      
-                  # 아이템 감지 (들여쓰기나 - 로 시작하는 항목들)
-                  elif current_category and (line.startswith('  -') or line.startswith('-') or line.startswith('•')):
-                      # 불릿 포인트 제거하고 텍스트만 추출
-                      item_text = re.sub(r'^[\s\-•]+', '', line).strip()
-                      if item_text and len(item_text) > 3:  # 의미있는 내용만
-                          current_items.append(item_text)
-                          print(f"  📝 아이템 추가: '{item_text[:50]}...'")
+                  # 카테고리 제목 감지 (한국어/영어 모두 지원)
+                  is_category = False
+                  for category_name, category_key in category_mapping.items():
+                      if line == category_name or line.startswith(category_name):
+                          # 이전 카테고리 저장
+                          if current_category and current_items:
+                              if current_category not in detected_categories:
+                                  detected_categories[current_category] = []
+                              detected_categories[current_category].extend(current_items)
+                              print(f"✅ 카테고리 저장: '{current_category}' -> {len(current_items)}개 아이템")
+                          
+                          # 새 카테고리 시작
+                          current_category = category_key
+                          current_items = []
+                          is_category = True
+                          print(f"🏷️ 새 카테고리 시작: '{category_name}' -> '{category_key}'")
+                          break
                   
-                  # 일반 텍스트도 아이템으로 간주 (카테고리 다음에 오는 설명문)
-                  elif current_category and len(line) > 10 and not line.endswith(':'):
-                      current_items.append(line)
-                      print(f"  📝 설명 아이템 추가: '{line[:50]}...'")
+                  if is_category:
+                      continue
+                  
+                  # 아이템 감지 (현재 카테고리가 있을 때만)
+                  if current_category:
+                      # 의미있는 텍스트인지 확인
+                      if len(line) > 5 and not line.startswith('Summary by') and line != '해당 없음':
+                          # 불필요한 문자 제거
+                          clean_item = line.strip('- •').strip()
+                          if clean_item and len(clean_item) > 10:
+                              current_items.append(clean_item)
+                              print(f"  📝 아이템 추가: '{clean_item[:60]}...'")
               
               # 마지막 카테고리 저장
               if current_category and current_items:
-                  safe_key = re.sub(r'[^a-zA-Z0-9가-힣]', '_', current_category.lower()).strip('_')
-                  detected_categories[safe_key] = {
-                      'title': current_category,
-                      'items': current_items.copy()
-                  }
-                  print(f"✅ 마지막 카테고리 저장: '{current_category}' -> '{safe_key}' ({len(current_items)}개 아이템)")
+                  if current_category not in detected_categories:
+                      detected_categories[current_category] = []
+                  detected_categories[current_category].extend(current_items)
+                  print(f"✅ 마지막 카테고리 저장: '{current_category}' -> {len(current_items)}개 아이템")
               
               print(f"🎯 최종 감지된 카테고리 수: {len(detected_categories)}")
-              for category, data in detected_categories.items():
-                  print(f"  📂 {category}: {data['title']} ({len(data['items'])}개 아이템)")
-                  for item in data['items'][:2]:  # 처음 2개만 미리보기
-                      print(f"    • {item[:50]}...")
+              for category, items in detected_categories.items():
+                  print(f"  📂 {category}: {len(items)}개 아이템")
+                  for item in items[:2]:  # 처음 2개만 미리보기
+                      print(f"    • {item[:60]}...")
               
               return detected_categories
 
@@ -298,41 +300,36 @@ jobs:
               timestamp = os.environ.get('TIMESTAMP')
               
               try:
-                  # 텍스트 파일 읽기 (HTML 태그 제거된 버전)
+                  # 텍스트 파일 읽기
                   with open('raw_summary.txt', 'r', encoding='utf-8') as f:
                       text_content = f.read()
                   
-                  print(f"📄 읽어온 텍스트 내용 미리보기:")
+                  print(f"📄 읽어온 텍스트 내용:")
                   print("=" * 50)
-                  print(text_content[:500] + "..." if len(text_content) > 500 else text_content)
+                  print(text_content[:800] + "..." if len(text_content) > 800 else text_content)
                   print("=" * 50)
                   
-                  # 동적 카테고리 감지
-                  categories = detect_categories(text_content)
+                  # CodeRabbit Summary 파싱
+                  categories = parse_coderabbit_summary(text_content)
                   
-                  print("🎯 감지된 카테고리들:")
-                  for key, value in categories.items():
-                      print(f"  - {key}: {value['title']} ({len(value['items'])}개 항목)")
-                      for item in value['items'][:3]:  # 첫 3개 아이템만 미리보기
-                          print(f"    • {item[:80]}...")
-                  
-                  # Raw summary 읽기 (텍스트 버전 사용)
+                  # Raw summary 저장
                   raw_summary = text_content.strip() if text_content else "Summary parsing failed"
                   
-                  # 새로운 릴리즈 엔트리 생성 (Expo 형식 참조)
+                  # 새로운 릴리즈 엔트리 생성
                   new_release = {
                       "version": version,
-                      "date": timestamp[0:10],  # YYYY-MM-DD 형식
+                      "date": timestamp[0:10],
                       "timestamp": timestamp,
                       "pr_number": pr_number,
                       "raw_summary": raw_summary,
-                      "changes": {}
+                      "changes": categories  # 직접 카테고리 할당
                   }
                   
-                  # 동적 카테고리를 changes에 추가 (Expo parsed_changes 방식)
-                  for key, value in categories.items():
-                      new_release["changes"][key] = value["items"]
-                      print(f"📝 changes에 추가: {key} -> {len(value['items'])}개 아이템")
+                  print("🎯 생성된 릴리즈 엔트리:")
+                  for key, items in categories.items():
+                      print(f"  - {key}: {len(items)}개 항목")
+                      for item in items[:2]:
+                          print(f"    • {item[:70]}...")
                   
                   # CHANGELOG.json 업데이트
                   try:
@@ -349,12 +346,38 @@ jobs:
                       json.dump(changelog_data, f, indent=2, ensure_ascii=False)
                   
                   print("✅ CHANGELOG.json 업데이트 완료!")
-                  total_items = sum(len(data['items']) for data in categories.values())
+                  total_items = sum(len(items) for items in categories.values())
                   print(f"📊 총 {len(categories)}개 카테고리, {total_items}개 변경사항")
                   
               except Exception as e:
                   print(f"❌ 파싱 오류: {e}")
-                  sys.exit(1)
+                  import traceback
+                  print(f"📋 상세 오류:\n{traceback.format_exc()}")
+                  
+                  # 실패 시 기본 엔트리 생성
+                  fallback_release = {
+                      "version": version,
+                      "date": timestamp[0:10],
+                      "timestamp": timestamp,
+                      "pr_number": pr_number,
+                      "raw_summary": "파싱 실패",
+                      "changes": {
+                          "general": [f"PR #{pr_number}의 변경사항이 반영되었습니다."]
+                      }
+                  }
+                  
+                  try:
+                      with open('CHANGELOG.json', 'r', encoding='utf-8') as f:
+                          changelog_data = json.load(f)
+                  except:
+                      changelog_data = {"releases": []}
+                  
+                  changelog_data["releases"].insert(0, fallback_release)
+                  
+                  with open('CHANGELOG.json', 'w', encoding='utf-8') as f:
+                      json.dump(changelog_data, f, indent=2, ensure_ascii=False)
+                  
+                  print("⚠️ 기본 엔트리로 CHANGELOG.json 업데이트 완료")
 
           if __name__ == "__main__":
               main()
@@ -367,13 +390,29 @@ jobs:
 
           python3 parse_changelog.py
 
-      - name: Generate CHANGELOG.md from JSON
+      - name: Generate CHANGELOG.md from JSON (Flutter 앱 방식)
         if: steps.detect_summary.outputs.summary_found == 'true'
         run: |
-          echo "📄 CHANGELOG.json에서 CHANGELOG.md 재생성 중..."
+          echo "📄 CHANGELOG.json에서 CHANGELOG.md 재생성 중 (Flutter 앱 방식)..."
 
           python3 << 'PYTHON_SCRIPT'
           import json
+
+          def get_category_title(key):
+              """카테고리 키를 한국어 제목으로 변환 (Flutter 앱 방식)"""
+              category_titles = {
+                  'new_features': '신규 기능',
+                  'bug_fixes': '버그 수정', 
+                  'style': '스타일',
+                  'refactor': '리팩토링',
+                  'chores': '작업 정리',
+                  'documentation': '문서',
+                  'tests': '테스트',
+                  'performance': '성능',
+                  'security': '보안',
+                  'general': '일반'
+              }
+              return category_titles.get(key.lower(), key.replace('_', ' ').title())
 
           try:
               with open('CHANGELOG.json', 'r', encoding='utf-8') as f:
@@ -381,79 +420,65 @@ jobs:
               
               with open('CHANGELOG.md', 'w', encoding='utf-8') as f:
                   f.write("# CHANGELOG\n\n")
-                  f.write("이 파일은 워크플로우에 의해 자동으로 생성됩니다.\n")
+                  f.write("이 파일은 워크플로우에 의해 자동으로 생성됩니다.\n\n")
 
                   for release in data['releases']:
-                      f.write(f"## v{release['version']} ({release['timestamp'][0:10]})\n")
+                      version = release.get('version', 'Unknown')
+                      date = release.get('date', release.get('timestamp', '')[:10])
+                      pr_number = release.get('pr_number', 'N/A')
+                      changes = release.get('changes', {})
                       
-                      # 카테고리별로 정리된 형식으로 출력 (Expo 방식 개선)
-                      if release['changes']:
-                          for category_key, items in release['changes'].items():
+                      f.write(f"## v{version} ({date})\n\n")
+                      f.write(f"**PR:** #{pr_number}\n\n")
+                      
+                      # 변경사항이 있는 경우 카테고리별로 출력
+                      if changes and any(items for items in changes.values() if items):
+                          for category_key, items in changes.items():
                               if items and len(items) > 0:
-                                  # 카테고리명을 한국어로 변환 (영어 원문 기준)
-                                  category_titles = {
-                                      'new_features': '새로운 기능',
-                                      'bug_fixes': '버그 수정', 
-                                      'style': '스타일 개선',
-                                      'refactor': '리팩토링',
-                                      'chores': '작업 정리',
-                                      'features': '새로운 기능',
-                                      'documentation': '문서화',
-                                      'test': '테스트',
-                                      'general': '일반',
-                                      # 추가 매핑
-                                      'ui': 'UI 개선',
-                                      'performance': '성능 개선',
-                                      'security': '보안',
-                                      'api': 'API',
-                                      'fixes': '수정사항'
-                                  }
-                                  
-                                  title = category_titles.get(category_key.lower(), category_key.replace('_', ' ').title())
-                                  f.write(f"\n**{title}**\n")
+                                  title = get_category_title(category_key)
+                                  f.write(f"**{title}**\n")
                                   
                                   for item in items:
                                       f.write(f"- {item}\n")
+                                  f.write("\n")
                       else:
-                          # changes가 비어있는 경우 기본 메시지
-                          f.write(f"\n**일반**\n")
-                          f.write(f"- PR #{release.get('pr_number', 'N/A')}의 변경사항이 반영되었습니다.\n")
+                          # 변경사항이 없는 경우 기본 메시지
+                          f.write(f"**일반**\n")
+                          f.write(f"- PR #{pr_number}의 변경사항이 반영되었습니다.\n\n")
                       
-                      f.write("\n---\n\n")
+                      f.write("---\n\n")
               
-              print("✅ CHANGELOG.md 재생성 완료!")
+              print("✅ CHANGELOG.md 재생성 완료 (Flutter 앱 방식)!")
               
           except Exception as e:
               print(f"❌ CHANGELOG.md 생성 실패: {e}")
+              import traceback
+              print(f"📋 상세 오류:\n{traceback.format_exc()}")
               exit(1)
           PYTHON_SCRIPT
 
-      - name: Generate PREVIOUS_CHANGES.md from JSON
+      - name: Generate PREVIOUS_CHANGES.md from JSON (Flutter 앱 방식)
         if: steps.detect_summary.outputs.summary_found == 'true'
         run: |
-          echo "📄 PREVIOUS_CHANGES.md 생성 중..."
+          echo "📄 PREVIOUS_CHANGES.md 생성 중 (Flutter 앱 방식)..."
 
           python3 << 'PYTHON_SCRIPT'
           import json
           import os
 
           def get_category_title(key):
-              """카테고리 키를 한국어 제목으로 변환"""
+              """카테고리 키를 한국어 제목으로 변환 (Flutter 앱 방식)"""
               category_titles = {
-                  'new_features': '새로운 기능',
+                  'new_features': '신규 기능',
                   'bug_fixes': '버그 수정', 
-                  'style': '스타일 개선',
+                  'style': '스타일',
                   'refactor': '리팩토링',
                   'chores': '작업 정리',
-                  'features': '새로운 기능',
-                  'documentation': '문서화',
-                  'test': '테스트',
-                  'general': '일반',
-                  'ui': 'UI 개선',
-                  'performance': '성능 개선',
+                  'documentation': '문서',
+                  'tests': '테스트',
+                  'performance': '성능',
                   'security': '보안',
-                  'api': 'API',
-                  'fixes': '수정사항'
+                  'general': '일반'
               }
               return category_titles.get(key.lower(), key.replace('_', ' ').title())
 
@@ -473,13 +498,14 @@ jobs:
                       else:
                           for release in previous_releases:
                               version = release.get('version', 'Unknown')
-                              date = release.get('timestamp', release.get('date', ''))[:10]  # YYYY-MM-DD
+                              date = release.get('date', release.get('timestamp', '')[:10])
                               pr_number = release.get('pr_number', 'N/A')
                               changes = release.get('changes', {})
                               
                               f.write(f"## [{version}] - {date}\n\n")
+                              f.write(f"**PR:** #{pr_number}\n\n")
                               
-                              # 변경사항이 있는 경우
+                              # 변경사항이 있는 경우 카테고리별로 출력
                               if changes and any(items for items in changes.values() if items):
                                   for category_key, items in changes.items():
                                       if items and len(items) > 0:
@@ -495,7 +521,7 @@ jobs:
                               
                               f.write("---\n\n")
                   
-                  print("✅ PREVIOUS_CHANGES.md 생성 완료")
+                  print("✅ PREVIOUS_CHANGES.md 생성 완료 (Flutter 앱 방식)")
               else:
                   # CHANGELOG.json이 없는 경우
                   with open('PREVIOUS_CHANGES.md', 'w', encoding='utf-8') as f:
@@ -523,13 +549,53 @@ jobs:
 
       - name: Commit and push CHANGELOG updates
         run: |
+          echo "📝 변경된 파일들을 커밋하고 푸시합니다..."
+
           git add package.json ios/Wit/Info.plist android/app/build.gradle CHANGELOG.json CHANGELOG.md PREVIOUS_CHANGES.md
+
           if ! git diff --staged --quiet; then
-            git commit -m "chore: update CHANGELOG to v${{ steps.versioning.outputs.new_version }} [skip ci]"
+            # 커밋 메시지 생성
+            COMMIT_MSG="chore: update CHANGELOG to v${{ steps.versioning.outputs.new_version }} [skip ci]"
+            git commit -m "$COMMIT_MSG"
+            
+            echo "🚀 main 브랜치에 푸시 중..."
             git push origin main
+            
+            echo "🔄 PR 브랜치도 동기화 중..."
+            # PR 정보 가져오기
+            PR_NUMBER="${{ steps.get_pr.outputs.pr_number }}"
+            
+            if [ -n "$PR_NUMBER" ]; then
+              # PR의 헤드 브랜치 정보 가져오기
+              PR_HEAD_REF=$(gh pr view $PR_NUMBER --json headRefName --jq '.headRefName')
+              
+              echo "📋 PR #$PR_NUMBER의 헤드 브랜치: $PR_HEAD_REF"
+              
+              # 헤드 브랜치가 main인 경우에만 동기화 (무한 루프 방지)
+              if [ "$PR_HEAD_REF" = "main" ]; then
+                echo "✅ PR 브랜치가 main이므로 이미 동기화됨"
+              else
+                echo "🔄 PR 브랜치 $PR_HEAD_REF를 main과 동기화 중..."
+                
+                # PR 브랜치 체크아웃 및 업데이트
+                git fetch origin
+                git checkout -B "$PR_HEAD_REF" "origin/$PR_HEAD_REF"
+                git merge main --no-edit
+                git push origin "$PR_HEAD_REF"
+                
+                # main 브랜치로 돌아가기
+                git checkout main
+                
+                echo "✅ PR 브랜치 동기화 완료"
+              fi
+            else
+              echo "⚠️ PR 번호를 찾을 수 없어 PR 브랜치 동기화를 건너뜁니다"
+            fi
           else
-            echo "No CHANGELOG changes to commit."
+            echo "📄 변경사항이 없어 커밋을 건너뜁니다."
           fi
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
 
       - name: Create and push Git tag
         run: |
