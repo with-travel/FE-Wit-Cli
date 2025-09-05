@@ -1,6 +1,14 @@
 {
   "releases": [
     {
+      "version": "1.0.53",
+      "date": "2025-09-05",
+      "timestamp": "2025-09-05T12:13:53Z",
+      "pr_number": 103,
+      "raw_summary": "\"body_html\": \"\\nSummary by CodeRabbit\\n\\nNew Features\\n\\n휴대폰 번호 인증을 2단계(번호 입력 → 인증 코드)로 개선: 코드 전송 후에만 코드 입력이 표시되고, 인증 완료 시 성공 메시지와 함께 입력이 비활성화됩니다. 번호·코드 유효성 검증도 강화했습니다.\\n여행 소개 작성 화면의 회원가입 흐름을 단일 절차로 통합: 진행 상태에 따라 버튼 레이블이 변경되고(예: “회원가입 중…”), 처리 중에는 비활성화됩니다. 성공/오류 알림을 제공하며, 성공 시 메인 화면으로 자동 이동합니다.\\n\\n\\n\\n\",\n  \"active_lock_reason\": null,\n  \"merged\": false,\n  \"mergeable\": true,\n  \"rebaseable\": true,\n  \"mergeable_state\": \"unstable\",\n  \"merged_by\": null,\n  \"comments\": 2,\n  \"review_comments\": 4,\n  \"maintainer_can_modify\": false,\n  \"commits\": 2,\n  \"additions\": 102,\n  \"deletions\": 48,\n  \"changed_files\": 2\n}",
+      "changes": {}
+    },
+    {
       "version": "1.0.52",
       "date": "2025-09-04",
       "timestamp": "2025-09-04T13:55:04Z",
