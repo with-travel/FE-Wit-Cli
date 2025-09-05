@@ -7,6 +7,7 @@ import {
   Text,
   TextInput,
   View,
+  Alert,
 } from 'react-native';
 import {
   SafeAreaView,
@@ -17,6 +18,9 @@ import { useAttachStep } from '@/components/providers/SignupProgressProvider';
 import { useFormContext, Controller } from 'react-hook-form';
 import { colors } from '@/constants/colors';
 import CustomButton from '@/components/common/CustomButton';
+import useAuth from '@/hooks/queries/useAuth';
+import { transformSignupData, validateSignupData } from '@/utils/signupUtils';
+import { useNavigation } from '@react-navigation/native';
 
 type FormValues = {
   email: string;
@@ -35,7 +39,9 @@ type FormValues = {
 export default function AuthTravelFormIntroduceScreen() {
   useAttachStep(2);
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
   const { control, watch, getValues } = useFormContext<FormValues>();
+  const { signupMutation } = useAuth();
 
   const introduce = watch('introduce') ?? '';
 
@@ -68,20 +74,55 @@ export default function AuthTravelFormIntroduceScreen() {
     };
   };
 
+  const handleSignup = async (formData: FormValues) => {
+    try {
+      // 폼 데이터 검증
+      const validationErrors = validateSignupData(formData);
+      if (validationErrors.length > 0) {
+        Alert.alert('입력 오류', validationErrors.join('\n'));
+        return;
+      }
+
+      // API 요청 형식으로 변환
+      const signupData = transformSignupData(formData);
+
+      console.log('회원가입 데이터:', signupData);
+
+      // 회원가입 API 호출
+      await signupMutation.mutateAsync(signupData);
+
+      Alert.alert('회원가입 완료', '회원가입이 완료되었습니다!', [
+        {
+          text: '확인',
+          onPress: () => {
+            // 메인 화면으로 이동 (자동 로그인 완료)
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'MainTab' as never }],
+            });
+          },
+        },
+      ]);
+    } catch (error) {
+      console.error('회원가입 실패:', error);
+      Alert.alert(
+        '회원가입 실패',
+        '회원가입 중 오류가 발생했습니다. 다시 시도해주세요.',
+      );
+    }
+  };
+
   const onSkip = () => {
     //자기소개서 스킵 && api 송신 후 정보 갱신
     const all = getValues();
-    const body = buildSignupBody({ ...all, introduce: '' });
-    // TODO: API 호출 붙이기
-    console.log('[SKIP] payload:', body);
+    const formDataWithEmptyIntroduce = { ...all, introduce: '' };
+    handleSignup(formDataWithEmptyIntroduce);
   };
 
   const onComplete = () => {
     //자기소개서 작성 완료 && api 송신 후 정보 갱신
     const all = getValues();
-    const body = buildSignupBody(all);
-    // TODO: API 호출 붙이기
-    console.log('[DONE] payload:', body);
+    handleSignup(all);
   };
 
   return (
@@ -130,8 +171,15 @@ export default function AuthTravelFormIntroduceScreen() {
 
         <View style={[styles.buttonCTA, { bottom: insets.bottom + 32 }]}>
           <CustomButton
-            label={canSubmit ? '완료' : '나중에 작성하기'}
+            label={
+              signupMutation.isPending
+                ? '회원가입 중...'
+                : canSubmit
+                ? '완료'
+                : '나중에 작성하기'
+            }
             onPress={canSubmit ? onComplete : onSkip}
+            disabled={signupMutation.isPending}
             style={!canSubmit && { backgroundColor: colors.GRAY_500 }}
           />
         </View>
