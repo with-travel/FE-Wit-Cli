@@ -1,0 +1,821 @@
+# ===================================================================
+# Wit 프로젝트 자동 체인지로그 관리 워크플로우
+# ===================================================================
+#
+# 이 워크플로우는 main -> release PR이 생성될 때 CodeRabbit AI의 리뷰를
+# 자동으로 감지하고 파싱하여 CHANGELOG.json과 CHANGELOG.md를 업데이트합니다.
+#
+# 작동 방식:
+# 1. main -> release PR 생성 시 트리거
+# 2. iOS 빌드 테스트 먼저 실행 (빠른 피드백)
+# 3. CodeRabbit Summary가 생성될 때까지 최대 10분 대기
+# 4. Summary 내용을 파싱하여 CHANGELOG 파일들 업데이트
+# 5. 버전 자동 증가 및 네이티브 파일 동기화
+# 6. PR 자동 머지 후 TestFlight 배포 트리거
+#
+# 지원 기능:
+# - React Native 프로젝트 버전 관리 (package.json, Info.plist, build.gradle)
+# - CodeRabbit Summary의 실시간 파싱 및 카테고리 분류
+# - JSON 및 Markdown 형식의 체인지로그 자동 생성
+# - README.md 및 PREVIOUS_CHANGES.md 자동 업데이트
+# - PR 자동 머지 및 TestFlight 배포 파이프라인 트리거
+#
+# ===================================================================
+
+name: 🤖 Auto CHANGELOG Control
+
+on:
+  pull_request_target:
+    types: [opened, synchronize]
+    branches: ['release']
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  # Job 1: 빌드 테스트 및 CodeRabbit Summary 감지
+  build-and-detect:
+    name: 🍎 빌드 테스트 및 📋 CodeRabbit Summary 감지
+    runs-on: macos-14
+    outputs:
+      summary_found: ${{ steps.detect_summary.outputs.summary_found }}
+      new_version: ${{ steps.versioning.outputs.new_version }}
+      pr_number: ${{ steps.get_pr.outputs.pr_number }}
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.PAT_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Git
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+      - name: Get PR Number from pull_request_target
+        id: get_pr
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+          echo "✅ PR 번호: $PR_NUMBER"
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Grant execute permission to scripts
+        run: |
+          echo "📋 스크립트 파일 권한 설정 중..."
+          if [ -f ".github/scripts/rn_version_manager.sh" ]; then
+            chmod +x .github/scripts/rn_version_manager.sh
+            echo "✅ rn_version_manager.sh 권한 설정 완료"
+          else
+            echo "❌ rn_version_manager.sh 파일을 찾을 수 없습니다!"
+            exit 1
+          fi
+
+      - name: Build and Test iOS Project
+        run: |
+          echo "🍎 iOS 프로젝트 빌드 테스트 시작..."
+          cd ios
+
+          # CocoaPods 캐시 정리 및 설치
+          echo "🧹 CocoaPods 캐시 정리 중..."
+          rm -rf Pods/
+          rm -rf build/
+          rm -f Podfile.lock
+          pod cache clean --all
+
+          echo "🔧 Xcode 프로젝트 파일 검증 및 수정 중..."
+          PROJECT_FILE="Wit.xcodeproj/project.pbxproj"
+
+          # 백업 생성
+          cp "$PROJECT_FILE" "${PROJECT_FILE}.backup"
+
+          # shellScript가 배열 형태로 되어 있는지 확인하고 수정
+          if grep -q 'shellScript = (' "$PROJECT_FILE"; then
+            echo "⚠️ 잘못된 shellScript 배열 형태 발견, sed로 수정 중..."
+            sed -i.tmp 's/shellScript = (/shellScript = "/g' "$PROJECT_FILE"
+            sed -i.tmp 's/);$/";/g' "$PROJECT_FILE"
+            sed -i.tmp 's/",$/\\n/g' "$PROJECT_FILE"
+            sed -i.tmp 's/",$//g' "$PROJECT_FILE"
+            rm "${PROJECT_FILE}.tmp"
+            echo "✅ project.pbxproj 수정 완료"
+          else
+            echo "✅ project.pbxproj 파일이 정상입니다"
+          fi
+
+          echo "📦 Pod 재설치 중..."
+          pod install --repo-update --verbose
+
+          echo "🔨 iOS 프로젝트 빌드 중..."
+          xcodebuild -workspace Wit.xcworkspace \
+                     -scheme Wit \
+                     -configuration Debug \
+                     -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
+                     build \
+                     CODE_SIGNING_REQUIRED=NO \
+                     CODE_SIGNING_ALLOWED=NO
+
+          echo "✅ iOS 빌드 테스트 완료"
+
+      - name: Request CodeRabbit Summary
+        run: |
+          echo "🤖 CodeRabbit에게 리뷰 요청 중..."
+          gh pr comment ${{ steps.get_pr.outputs.pr_number }} --body "@coderabbitai review"
+          echo "✅ CodeRabbit 리뷰 요청 완료"
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+
+      - name: Wait for CodeRabbit Summary (Enhanced Detection)
+        id: detect_summary
+        continue-on-error: true
+        timeout-minutes: 10
+        run: |
+          PR_NUMBER="${{ steps.get_pr.outputs.pr_number }}"
+          MAX_ATTEMPTS=120  # 10분 = 120 * 5초
+          ATTEMPT=0
+
+          echo "🔍 PR #$PR_NUMBER에서 CodeRabbit Summary 업데이트 감지 시작..."
+          echo "최대 대기 시간: 10분 (5초마다 체크)"
+
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            echo "[$ATTEMPT/$MAX_ATTEMPTS] CodeRabbit Summary 확인 중... ($(date '+%H:%M:%S'))"
+            
+            # GitHub API로 PR HTML 가져오기
+            curl -s -H "Authorization: token ${{ secrets.PAT_TOKEN }}" \
+                 -H "Accept: application/vnd.github.v3.html" \
+                 "https://api.github.com/repos/${{ github.repository }}/pulls/${PR_NUMBER}" \
+                 > pr_content.html
+            
+            # "No description provided" 체크
+            if grep -q "No description provided" pr_content.html; then
+              echo "❌ 아직 'No description provided' 상태입니다"
+            elif grep -q "Summary by CodeRabbit" pr_content.html; then
+              echo "✅ CodeRabbit Summary 발견! 파싱을 시작합니다"
+              echo "summary_found=true" >> $GITHUB_OUTPUT
+              break
+            else
+              echo "⏳ CodeRabbit Summary 아직 없음"
+            fi
+            
+            if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+              sleep 5
+            fi
+          done
+
+          if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
+            echo "⚠️ 10분 대기 후에도 CodeRabbit Summary를 찾을 수 없습니다"
+            echo "summary_found=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+
+      - name: Increment version and sync native files
+        id: versioning
+        run: |
+          NEW_VERSION=$(./.github/scripts/rn_version_manager.sh increment)
+          ./.github/scripts/rn_version_manager.sh sync
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "📦 새 버전: $NEW_VERSION"
+
+      - name: Upload PR content for next job
+        if: steps.detect_summary.outputs.summary_found == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-content-${{ steps.get_pr.outputs.pr_number }}
+          path: pr_content.html
+          retention-days: 1
+
+  # Job 2: CHANGELOG 업데이트 및 문서 생성
+  update-changelog:
+    name: 📝 CHANGELOG 업데이트 및 문서 생성
+    runs-on: macos-14
+    needs: build-and-detect
+    if: needs.build-and-detect.outputs.summary_found == 'true'
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.PAT_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Git
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+      - name: Download PR content
+        uses: actions/download-artifact@v4
+        with:
+          name: pr-content-${{ needs.build-and-detect.outputs.pr_number }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Enhanced CodeRabbit Summary Parsing and CHANGELOG Update
+        run: |
+          PR_NUMBER="${{ needs.build-and-detect.outputs.pr_number }}"
+          VERSION="${{ needs.build-and-detect.outputs.new_version }}"
+          TIMESTAMP=$(date '+%Y-%m-%dT%H:%M:%SZ')
+
+          echo "📝 CodeRabbit Summary 강화된 파싱 시작..."
+          echo "📋 버전 정보: v$VERSION (PR #$PR_NUMBER)"
+
+          # Summary 섹션 추출 (개선된 방식)
+          echo "🔍 PR HTML에서 CodeRabbit Summary 추출 중..."
+
+          # 1. HTML에서 Summary 섹션 추출
+          sed -n '/<h2[^>]*>Summary by CodeRabbit<\/h2>/,/<\/div>/p' pr_content.html > summary_section.html
+
+          # 2. Summary가 제대로 추출되었는지 확인
+          SUMMARY_SIZE=$(wc -c < summary_section.html)
+          echo "📄 추출된 Summary 섹션 크기: ${SUMMARY_SIZE} bytes"
+
+          if [ "$SUMMARY_SIZE" -lt 100 ]; then
+            echo "⚠️ Summary 섹션이 너무 작습니다. 다른 방식으로 추출 시도..."
+            # 더 넓은 범위로 추출
+            sed -n '/Summary by CodeRabbit/,/<!-- end of auto-generated comment/p' pr_content.html > summary_section.html
+            SUMMARY_SIZE=$(wc -c < summary_section.html)
+            echo "📄 재추출된 Summary 섹션 크기: ${SUMMARY_SIZE} bytes"
+          fi
+
+          # 3. HTML 태그 제거하고 텍스트만 추출
+          cat summary_section.html | sed 's/<[^>]*>//g' | sed 's/&nbsp;/ /g; s/&amp;/\&/g; s/&lt;/</g; s/&gt;/>/g; s/&quot;/"/g' > raw_summary.txt
+
+          # 4. 추출된 내용 확인 (전체 내용 출력)
+          echo "📋 추출된 Summary 전체 내용:"
+          echo "=========================================="
+          cat raw_summary.txt
+          echo "=========================================="
+
+          echo "📄 파일 크기 및 줄 수:"
+          echo "- 파일 크기: $(wc -c < raw_summary.txt) bytes"
+          echo "- 줄 수: $(wc -l < raw_summary.txt) lines"
+
+          # Python으로 실제 CodeRabbit Summary 형식에 맞는 파싱 로직
+          cat > parse_changelog.py << 'EOF'
+          import re
+          import json
+          import html
+          import sys
+          import os
+          from datetime import datetime
+
+          def parse_coderabbit_summary(raw_text):
+              """실제 CodeRabbit Summary 형식에 맞는 파싱 로직"""
+              print("🔍 CodeRabbit Summary 파싱 시작...")
+              print(f"📄 원본 텍스트 길이: {len(raw_text)} characters")
+              
+              # 텍스트 정리
+              text = raw_text.strip()
+              lines = [line.strip() for line in text.split('\n') if line.strip()]
+              
+              # 디버깅을 위한 원본 텍스트 전체 출력
+              print("📋 원본 텍스트 전체 내용:")
+              print("=" * 80)
+              for i, line in enumerate(lines):
+                  print(f"{i+1:3d}: '{line}'")
+              print("=" * 80)
+              
+              detected_categories = {}
+              current_category = None
+              current_items = []
+              
+              # 실제 CodeRabbit 형식에 맞는 카테고리 매핑
+              category_mapping = {
+                  'New Features': 'new_features',
+                  'Features': 'new_features',
+                  '신규 기능': 'new_features',
+                  '새로운 기능': 'new_features',
+                  
+                  'Bug Fixes': 'bug_fixes',
+                  'Fixes': 'bug_fixes',
+                  '버그 수정': 'bug_fixes',
+                  '수정사항': 'bug_fixes',
+                  
+                  'Style': 'style',
+                  'UI/UX': 'style',
+                  '스타일': 'style',
+                  
+                  'Refactor': 'refactor',
+                  '리팩토링': 'refactor',
+                  
+                  'Chore': 'chores',
+                  'Chores': 'chores',
+                  '작업': 'chores',
+                  '기타': 'chores',
+                  
+                  'Documentation': 'documentation',
+                  'Docs': 'documentation',
+                  '문서': 'documentation',
+                  '문서화': 'documentation',
+                  
+                  'Tests': 'tests',
+                  'Testing': 'tests',
+                  '테스트': 'tests',
+                  
+                  'Performance': 'performance',
+                  '성능': 'performance',
+                  
+                  'Security': 'security',
+                  '보안': 'security'
+              }
+              
+              # 라인별 처리
+              for line_num, line in enumerate(lines):
+                  print(f"🔍 [{line_num+1}] 처리 중: '{line}'")
+                  
+                  # Summary by CodeRabbit 헤더 스킵
+                  if 'Summary by CodeRabbit' in line:
+                      print(f"  ⏭️ 헤더 스킵")
+                      continue
+                  
+                  # 카테고리 제목 감지 (- 로 시작하는 경우)
+                  is_category = False
+                  if line.startswith('- '):
+                      # - New Features, - Documentation 등의 형식
+                      category_text = line[2:].strip()
+                      if category_text in category_mapping:
+                          # 이전 카테고리 저장
+                          if current_category and current_items:
+                              detected_categories[current_category] = current_items.copy()
+                              print(f"✅ 카테고리 저장: '{current_category}' -> {len(current_items)}개 아이템")
+                          
+                          # 새 카테고리 시작
+                          current_category = category_mapping[category_text]
+                          current_items = []
+                          is_category = True
+                          print(f"🏷️ 새 카테고리 시작: '{category_text}' -> '{current_category}'")
+                  
+                  # 일반 카테고리 제목 감지 (- 없이)
+                  elif line in category_mapping:
+                      # 이전 카테고리 저장
+                      if current_category and current_items:
+                          detected_categories[current_category] = current_items.copy()
+                          print(f"✅ 카테고리 저장: '{current_category}' -> {len(current_items)}개 아이템")
+                      
+                      # 새 카테고리 시작
+                      current_category = category_mapping[line]
+                      current_items = []
+                      is_category = True
+                      print(f"🏷️ 새 카테고리 시작: '{line}' -> '{current_category}'")
+                  
+                  if is_category:
+                      continue
+                  
+                  # 아이템 감지 (현재 카테고리가 있을 때만)
+                  if current_category:
+                      # 들여쓰기나 불릿 포인트가 있는 아이템
+                      if line.startswith('  - '):
+                          clean_item = line[4:].strip()
+                          if clean_item and len(clean_item) > 10:
+                              current_items.append(clean_item)
+                              print(f"  📝 들여쓰기 불릿 아이템: '{clean_item[:70]}...'")
+                      elif line.startswith('- '):
+                          clean_item = line[2:].strip()
+                          if clean_item and len(clean_item) > 10:
+                              current_items.append(clean_item)
+                              print(f"  📝 불릿 아이템: '{clean_item[:70]}...'")
+                      # 일반 텍스트 아이템 (들여쓰기 있음)
+                      elif line.startswith('  ') and len(line.strip()) > 15:
+                          clean_item = line.strip()
+                          current_items.append(clean_item)
+                          print(f"  📝 들여쓰기 텍스트 아이템: '{clean_item[:70]}...'")
+                      # 카테고리 바로 다음 줄의 내용 (들여쓰기 없음)
+                      elif len(line) > 20 and not line.endswith(':') and not any(cat in line for cat in category_mapping.keys()):
+                          current_items.append(line)
+                          print(f"  📝 직접 텍스트 아이템: '{line[:70]}...'")
+              
+              # 마지막 카테고리 저장
+              if current_category and current_items:
+                  detected_categories[current_category] = current_items.copy()
+                  print(f"✅ 마지막 카테고리 저장: '{current_category}' -> {len(current_items)}개 아이템")
+              
+              print(f"🎯 최종 감지된 카테고리 수: {len(detected_categories)}")
+              for category, items in detected_categories.items():
+                  print(f"  📂 {category}: {len(items)}개 아이템")
+                  for i, item in enumerate(items):
+                      print(f"    {i+1}. {item}")
+              
+              return detected_categories
+
+          def main():
+              # 환경 변수에서 값 가져오기
+              version = os.environ.get('VERSION')
+              pr_number = int(os.environ.get('PR_NUMBER'))
+              timestamp = os.environ.get('TIMESTAMP')
+              
+              try:
+                  # 텍스트 파일 읽기
+                  with open('raw_summary.txt', 'r', encoding='utf-8') as f:
+                      text_content = f.read()
+                  
+                  print(f"📄 읽어온 텍스트 내용:")
+                  print("=" * 50)
+                  print(text_content[:800] + "..." if len(text_content) > 800 else text_content)
+                  print("=" * 50)
+                  
+                  # CodeRabbit Summary 파싱
+                  categories = parse_coderabbit_summary(text_content)
+                  
+                  # Raw summary 저장
+                  raw_summary = text_content.strip() if text_content else "Summary parsing failed"
+                  
+                  # 새로운 릴리즈 엔트리 생성 (Wit 프로젝트 형식)
+                  new_release = {
+                      "version": version,
+                      "date": timestamp[0:10],
+                      "timestamp": timestamp,
+                      "pr_number": pr_number,
+                      "project_type": "react-native",
+                      "raw_summary": raw_summary,
+                      "changes": categories  # 직접 카테고리 할당
+                  }
+                  
+                  print("🎯 생성된 릴리즈 엔트리:")
+                  for key, items in categories.items():
+                      print(f"  - {key}: {len(items)}개 항목")
+                      for item in items[:2]:
+                          print(f"    • {item[:70]}...")
+                  
+                  # CHANGELOG.json 업데이트
+                  try:
+                      with open('CHANGELOG.json', 'r', encoding='utf-8') as f:
+                          changelog_data = json.load(f)
+                  except (FileNotFoundError, json.JSONDecodeError):
+                      changelog_data = {
+                          "metadata": {
+                              "lastUpdated": timestamp,
+                              "currentVersion": version,
+                              "projectType": "react-native",
+                              "totalReleases": 0
+                          },
+                          "releases": []
+                      }
+                  
+                  # 메타데이터 업데이트
+                  if "metadata" not in changelog_data:
+                      changelog_data["metadata"] = {}
+                  
+                  changelog_data["metadata"]["lastUpdated"] = timestamp
+                  changelog_data["metadata"]["currentVersion"] = version
+                  changelog_data["metadata"]["projectType"] = "react-native"
+                  changelog_data["metadata"]["totalReleases"] = len(changelog_data.get("releases", [])) + 1
+                  
+                  # 새 릴리즈를 맨 앞에 추가
+                  if "releases" not in changelog_data:
+                      changelog_data["releases"] = []
+                  changelog_data["releases"].insert(0, new_release)
+                  
+                  # 파일 저장
+                  with open('CHANGELOG.json', 'w', encoding='utf-8') as f:
+                      json.dump(changelog_data, f, indent=2, ensure_ascii=False)
+                  
+                  print("✅ CHANGELOG.json 업데이트 완료!")
+                  total_items = sum(len(items) for items in categories.values())
+                  print(f"📊 총 {len(categories)}개 카테고리, {total_items}개 변경사항")
+                  
+              except Exception as e:
+                  print(f"❌ 파싱 오류: {e}")
+                  import traceback
+                  print(f"📋 상세 오류:\n{traceback.format_exc()}")
+                  
+                  # 실패 시 기본 엔트리 생성
+                  fallback_release = {
+                      "version": version,
+                      "date": timestamp[0:10],
+                      "timestamp": timestamp,
+                      "pr_number": pr_number,
+                      "project_type": "react-native",
+                      "raw_summary": "파싱 실패",
+                      "changes": {
+                          "general": [f"PR #{pr_number}의 변경사항이 반영되었습니다."]
+                      }
+                  }
+                  
+                  try:
+                      with open('CHANGELOG.json', 'r', encoding='utf-8') as f:
+                          changelog_data = json.load(f)
+                  except:
+                      changelog_data = {"releases": []}
+                  
+                  if "releases" not in changelog_data:
+                      changelog_data["releases"] = []
+                  changelog_data["releases"].insert(0, fallback_release)
+                  
+                  with open('CHANGELOG.json', 'w', encoding='utf-8') as f:
+                      json.dump(changelog_data, f, indent=2, ensure_ascii=False)
+                  
+                  print("⚠️ 기본 엔트리로 CHANGELOG.json 업데이트 완료")
+
+          if __name__ == "__main__":
+              main()
+          EOF
+
+          # 환경 변수 설정하고 Python 스크립트 실행
+          export VERSION="$VERSION"
+          export PR_NUMBER="$PR_NUMBER"
+          export TIMESTAMP="$TIMESTAMP"
+
+          python3 parse_changelog.py
+
+      - name: Generate All Documentation Files
+        run: |
+          echo "📄 모든 문서 파일 생성 중..."
+
+          python3 << 'PYTHON_SCRIPT'
+          import json
+          import os
+
+          def get_category_title(key):
+              """카테고리 키를 한국어 제목으로 변환"""
+              category_titles = {
+                  'new_features': '신규 기능',
+                  'bug_fixes': '버그 수정', 
+                  'style': '스타일',
+                  'refactor': '리팩토링',
+                  'chores': '작업 정리',
+                  'documentation': '문서',
+                  'tests': '테스트',
+                  'performance': '성능',
+                  'security': '보안',
+                  'general': '일반'
+              }
+              return category_titles.get(key.lower(), key.replace('_', ' ').title())
+
+          try:
+              with open('CHANGELOG.json', 'r', encoding='utf-8') as f:
+                  data = json.load(f)
+              
+              # 1. CHANGELOG.md 생성
+              print("📝 CHANGELOG.md 생성 중...")
+              with open('CHANGELOG.md', 'w', encoding='utf-8') as f:
+                  f.write("# CHANGELOG\n\n")
+                  f.write("이 파일은 워크플로우에 의해 자동으로 생성됩니다.\n\n")
+
+                  # 메타데이터 정보 추가
+                  metadata = data.get('metadata', {})
+                  if metadata:
+                      f.write(f"**프로젝트 타입:** {metadata.get('projectType', 'Unknown')}  \n")
+                      f.write(f"**현재 버전:** {metadata.get('currentVersion', 'Unknown')}  \n")
+                      f.write(f"**마지막 업데이트:** {metadata.get('lastUpdated', 'Unknown')}  \n\n")
+                      f.write("---\n\n")
+
+                  for release in data.get('releases', []):
+                      version = release.get('version', 'Unknown')
+                      date = release.get('date', release.get('timestamp', '')[:10])
+                      pr_number = release.get('pr_number', 'N/A')
+                      changes = release.get('changes', {})
+                      
+                      f.write(f"## v{version} ({date})\n\n")
+                      f.write(f"**PR:** #{pr_number}\n\n")
+                      
+                      # 변경사항이 있는 경우 카테고리별로 출력
+                      if changes and any(items for items in changes.values() if items):
+                          for category_key, items in changes.items():
+                              if items and len(items) > 0:
+                                  title = get_category_title(category_key)
+                                  f.write(f"**{title}**\n")
+                                  
+                                  for item in items:
+                                      f.write(f"- {item}\n")
+                                  f.write("\n")
+                      else:
+                          # 변경사항이 없는 경우 기본 메시지
+                          f.write(f"**일반**\n")
+                          f.write(f"- PR #{pr_number}의 변경사항이 반영되었습니다.\n\n")
+                      
+                      f.write("---\n\n")
+              
+              # 2. PREVIOUS_CHANGES.md 생성
+              print("📝 PREVIOUS_CHANGES.md 생성 중...")
+              with open('PREVIOUS_CHANGES.md', 'w', encoding='utf-8') as f:
+                  f.write("# 이전 변경사항\n\n")
+                  
+                  # 최신 버전(인덱스 0)을 제외한 나머지 버전들 처리
+                  previous_releases = data.get('releases', [])[1:]
+                  
+                  if not previous_releases:
+                      f.write("아직 이전 변경사항이 없습니다.\n")
+                  else:
+                      for release in previous_releases:
+                          version = release.get('version', 'Unknown')
+                          date = release.get('date', release.get('timestamp', '')[:10])
+                          pr_number = release.get('pr_number', 'N/A')
+                          changes = release.get('changes', {})
+                          
+                          f.write(f"## [{version}] - {date}\n\n")
+                          f.write(f"**PR:** #{pr_number}\n\n")
+                          
+                          # 변경사항이 있는 경우 카테고리별로 출력
+                          if changes and any(items for items in changes.values() if items):
+                              for category_key, items in changes.items():
+                                  if items and len(items) > 0:
+                                      title = get_category_title(category_key)
+                                      f.write(f"**{title}**\n")
+                                      for item in items:
+                                          f.write(f"- {item}\n")
+                                      f.write("\n")
+                          else:
+                              # 변경사항이 없는 경우 기본 메시지
+                              f.write(f"**일반**\n")
+                              f.write(f"- PR #{pr_number}의 변경사항이 반영되었습니다.\n\n")
+                          
+                          f.write("---\n\n")
+              
+              # 3. README.md 생성
+              print("📝 README.md 생성 중...")
+              if data.get('releases'):
+                  latest_release = data['releases'][0]
+                  version = latest_release.get('version', 'Unknown')
+                  date = latest_release.get('date', latest_release.get('timestamp', '')[:10])
+                  pr_number = latest_release.get('pr_number', 'N/A')
+                  changes = latest_release.get('changes', {})
+                  
+                  with open('README.md', 'w', encoding='utf-8') as f:
+                      f.write("# Wit App\n\n")
+                      f.write("여행 친구 찾기\n\n")
+                      f.write("---\n\n")
+                      f.write(f"## 최신 버전: v{version} ({date})\n\n")
+                      f.write(f"**PR:** #{pr_number}\n\n")
+                      
+                      # 변경사항 섹션
+                      f.write("### 변경 사항\n\n")
+                      
+                      if changes and any(items for items in changes.values() if items):
+                          for category_key, items in changes.items():
+                              if items and len(items) > 0:
+                                  title = get_category_title(category_key)
+                                  f.write(f"**{title}**\n")
+                                  for item in items:
+                                      f.write(f"- {item}\n")
+                                  f.write("\n")
+                      else:
+                          f.write(f"**일반**\n")
+                          f.write(f"- PR #{pr_number}의 변경사항이 반영되었습니다.\n\n")
+                      
+                      # 이전 변경사항 링크
+                      f.write("### 이전 변경 사항\n\n")
+                      f.write("[이전 변경사항 보기](PREVIOUS_CHANGES.md)\n\n")
+                      
+                      # 문서 섹션
+                      f.write("**DOCUMENTATION**\n\n")
+                      f.write("- Expo -> Cli로 변경되었습니다.\n\n")
+                      f.write("---\n\n")
+                      f.write("<!-- [이전 변경사항 보기](PREVIOUS_CHANGES.md) -->\n")
+              
+              print("✅ 모든 문서 파일 생성 완료!")
+              
+          except Exception as e:
+              print(f"❌ 문서 생성 실패: {e}")
+              import traceback
+              print(f"📋 상세 오류:\n{traceback.format_exc()}")
+              exit(1)
+          PYTHON_SCRIPT
+
+      - name: Commit and push all changes
+        run: |
+          echo "📝 모든 변경사항을 커밋하고 푸시합니다..."
+
+          git add package.json ios/Wit/Info.plist android/app/build.gradle CHANGELOG.json CHANGELOG.md PREVIOUS_CHANGES.md README.md
+
+          if ! git diff --staged --quiet; then
+            # 커밋 메시지 생성
+            COMMIT_MSG="chore: update CHANGELOG to v${{ needs.build-and-detect.outputs.new_version }} [skip ci]"
+            git commit -m "$COMMIT_MSG"
+            
+            echo "🚀 main 브랜치에 푸시 중..."
+            git push origin main
+            
+            echo "🔄 PR 브랜치도 동기화 중..."
+            # PR 정보 가져오기
+            PR_NUMBER="${{ needs.build-and-detect.outputs.pr_number }}"
+            
+            if [ -n "$PR_NUMBER" ]; then
+              # PR의 헤드 브랜치 정보 가져오기
+              PR_HEAD_REF=$(gh pr view $PR_NUMBER --json headRefName --jq '.headRefName')
+              
+              echo "📋 PR #$PR_NUMBER의 헤드 브랜치: $PR_HEAD_REF"
+              
+              # 헤드 브랜치가 main인 경우에만 동기화 (무한 루프 방지)
+              if [ "$PR_HEAD_REF" = "main" ]; then
+                echo "✅ PR 브랜치가 main이므로 이미 동기화됨"
+              else
+                echo "🔄 PR 브랜치 $PR_HEAD_REF를 main과 동기화 중..."
+                
+                # PR 브랜치 체크아웃 및 업데이트
+                git fetch origin
+                git checkout -B "$PR_HEAD_REF" "origin/$PR_HEAD_REF"
+                git merge main --no-edit
+                git push origin "$PR_HEAD_REF"
+                
+                # main 브랜치로 돌아가기
+                git checkout main
+                
+                echo "✅ PR 브랜치 동기화 완료"
+              fi
+            else
+              echo "⚠️ PR 번호를 찾을 수 없어 PR 브랜치 동기화를 건너뜁니다"
+            fi
+          else
+            echo "📄 변경사항이 없어 커밋을 건너뜁니다."
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+
+      - name: Create and push Git tag
+        run: |
+          git tag "v${{ needs.build-and-detect.outputs.new_version }}"
+          git push origin "v${{ needs.build-and-detect.outputs.new_version }}"
+
+      - name: Cleanup
+        run: |
+          rm -f pr_content.html summary_section.html raw_summary.txt parse_changelog.py
+
+  # Job 3: PR 머지 및 TestFlight 배포 트리거
+  merge-and-deploy:
+    name: 🚀 PR 머지 및 TestFlight 배포 트리거
+    runs-on: macos-14
+    needs: [build-and-detect, update-changelog]
+    if: needs.build-and-detect.outputs.summary_found == 'true'
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Git
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+      - name: Auto Merge PR
+        run: |
+          echo "🔍 PR 번호 추출 및 자동 병합 준비 중..."
+
+          PR_NUMBER="${{ needs.build-and-detect.outputs.pr_number }}"
+
+          if [ -n "$PR_NUMBER" ]; then
+            echo "📋 PR #$PR_NUMBER 정보 확인 중..."
+            
+            # PR 상세 정보 가져오기
+            PR_INFO=$(gh pr view $PR_NUMBER --json state,mergeable,baseRefName,headRefName)
+            PR_STATE=$(echo "$PR_INFO" | jq -r '.state')
+            PR_MERGEABLE=$(echo "$PR_INFO" | jq -r '.mergeable')
+            BASE_BRANCH=$(echo "$PR_INFO" | jq -r '.baseRefName')
+            HEAD_BRANCH=$(echo "$PR_INFO" | jq -r '.headRefName')
+            
+            echo "📊 PR 상태:"
+            echo "  - 상태: $PR_STATE"
+            echo "  - 병합 가능: $PR_MERGEABLE"
+            echo "  - 베이스 브랜치: $BASE_BRANCH"
+            echo "  - 헤드 브랜치: $HEAD_BRANCH"
+            
+            # main -> release PR인지 확인
+            if [ "$BASE_BRANCH" = "release" ] && [ "$HEAD_BRANCH" = "main" ]; then
+              echo "✅ main -> release PR 확인됨"
+              
+              if [ "$PR_STATE" = "OPEN" ] && [ "$PR_MERGEABLE" = "MERGEABLE" ]; then
+                echo "🎉 모든 CHANGELOG 업데이트가 성공했습니다. PR #$PR_NUMBER을 자동 병합합니다."
+                
+                # 병합 실행
+                gh pr merge $PR_NUMBER --squash --admin --delete-branch
+                
+                echo "✅ PR #$PR_NUMBER 병합 완료!"
+                echo "🗑️ main 브랜치 삭제 완료 (--delete-branch)"
+                echo "🚀 TestFlight 배포 워크플로우가 자동으로 트리거됩니다."
+              else
+                echo "⚠️ PR 병합 조건 불만족:"
+                echo "  - 상태가 OPEN이 아니거나 병합 불가능한 상태입니다"
+              fi
+            else
+              echo "ℹ️ main -> release PR이 아닙니다. 자동 병합을 건너뜁니다."
+              echo "  - 현재: $HEAD_BRANCH -> $BASE_BRANCH"
+            fi
+          else
+            echo "⚠️ PR 번호를 찾을 수 없어 자동 병합을 건너뜁니다."
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+
+      - name: Deployment Complete Notification
+        run: |
+          echo "🎉 CHANGELOG 업데이트 및 배포 트리거 완료!"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📋 배포 정보:"
+          echo "  • 버전: v${{ needs.build-and-detect.outputs.new_version }}"
+          echo "  • 프로젝트 타입: React Native"
+          echo "  • PR 번호: #${{ needs.build-and-detect.outputs.pr_number }}"
+          echo "  • 브랜치: release"
+          echo "  • 다음 단계: TestFlight 자동 배포"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

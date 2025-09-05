@@ -589,7 +589,7 @@ jobs:
           import os
 
           def get_category_title(key):
-              """카테고리 키를 한국어 제목으로 변환 (Flutter 앱 방식)"""
+              """카테고리 키를 한국어 제목으로 변환 (실제 CodeRabbit 형식 기반)"""
               category_titles = {
                   'new_features': '신규 기능',
                   'bug_fixes': '버그 수정', 
@@ -654,7 +654,7 @@ jobs:
                   f.write("---\n\n")
                   f.write("<!-- [이전 변경사항 보기](PREVIOUS_CHANGES.md) -->\n")
               
-              print("✅ README.md 업데이트 완료 (Flutter 앱 방식)")
+              print("✅ README.md 업데이트 완료 (실제 CodeRabbit 형식 기반)")
               
               # GitHub Actions 출력 설정
               with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
