@@ -729,36 +729,7 @@ jobs:
             echo "🚀 main 브랜치에 푸시 중..."
             git push origin main
             
-            echo "🔄 PR 브랜치도 동기화 중..."
-            # PR 정보 가져오기
-            PR_NUMBER="${{ needs.build-and-detect.outputs.pr_number }}"
-            
-            if [ -n "$PR_NUMBER" ]; then
-              # PR의 헤드 브랜치 정보 가져오기
-              PR_HEAD_REF=$(gh pr view $PR_NUMBER --json headRefName --jq '.headRefName')
-              
-              echo "📋 PR #$PR_NUMBER의 헤드 브랜치: $PR_HEAD_REF"
-              
-              # 헤드 브랜치가 main인 경우에만 동기화 (무한 루프 방지)
-              if [ "$PR_HEAD_REF" = "main" ]; then
-                echo "✅ PR 브랜치가 main이므로 이미 동기화됨"
-              else
-                echo "🔄 PR 브랜치 $PR_HEAD_REF를 main과 동기화 중..."
-                
-                # PR 브랜치 체크아웃 및 업데이트
-                git fetch origin
-                git checkout -B "$PR_HEAD_REF" "origin/$PR_HEAD_REF"
-                git merge main --no-edit
-                git push origin "$PR_HEAD_REF"
-                
-                # main 브랜치로 돌아가기
-                git checkout main
-                
-                echo "✅ PR 브랜치 동기화 완료"
-              fi
-            else
-              echo "⚠️ PR 번호를 찾을 수 없어 PR 브랜치 동기화를 건너뜁니다"
-            fi
+            echo "✅ CHANGELOG 업데이트 완료. main 브랜치에 푸시됨"
           else
             echo "📄 변경사항이 없어 커밋을 건너뜁니다."
           fi
@@ -774,81 +745,14 @@ jobs:
         run: |
           rm -f pr_content.html summary_section.html raw_summary.txt parse_changelog.py
 
-  # Job 3: PR 머지 및 TestFlight 배포 트리거
-  merge-and-deploy:
-    name: 🚀 PR 머지 및 TestFlight 배포 트리거
-    runs-on: macos-14
-    needs: [build-and-detect, update-changelog]
-    if: needs.build-and-detect.outputs.summary_found == 'true'
-    steps:
-      - name: Checkout main branch
-        uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.PAT_TOKEN }}
-          fetch-depth: 0
-
-      - name: Setup Git
+      - name: Workflow Complete Notification
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-
-      - name: Auto Merge PR
-        run: |
-          echo "🔍 PR 번호 추출 및 자동 병합 준비 중..."
-
-          PR_NUMBER="${{ needs.build-and-detect.outputs.pr_number }}"
-
-          if [ -n "$PR_NUMBER" ]; then
-            echo "📋 PR #$PR_NUMBER 정보 확인 중..."
-            
-            # PR 상세 정보 가져오기
-            PR_INFO=$(gh pr view $PR_NUMBER --json state,mergeable,baseRefName,headRefName)
-            PR_STATE=$(echo "$PR_INFO" | jq -r '.state')
-            PR_MERGEABLE=$(echo "$PR_INFO" | jq -r '.mergeable')
-            BASE_BRANCH=$(echo "$PR_INFO" | jq -r '.baseRefName')
-            HEAD_BRANCH=$(echo "$PR_INFO" | jq -r '.headRefName')
-            
-            echo "📊 PR 상태:"
-            echo "  - 상태: $PR_STATE"
-            echo "  - 병합 가능: $PR_MERGEABLE"
-            echo "  - 베이스 브랜치: $BASE_BRANCH"
-            echo "  - 헤드 브랜치: $HEAD_BRANCH"
-            
-            # main -> release PR인지 확인
-            if [ "$BASE_BRANCH" = "release" ] && [ "$HEAD_BRANCH" = "main" ]; then
-              echo "✅ main -> release PR 확인됨"
-              
-              if [ "$PR_STATE" = "OPEN" ] && [ "$PR_MERGEABLE" = "MERGEABLE" ]; then
-                echo "🎉 모든 CHANGELOG 업데이트가 성공했습니다. PR #$PR_NUMBER을 자동 병합합니다."
-                
-                # 병합 실행
-                gh pr merge $PR_NUMBER --squash --admin --delete-branch
-                
-                echo "✅ PR #$PR_NUMBER 병합 완료!"
-                echo "🗑️ main 브랜치 삭제 완료 (--delete-branch)"
-                echo "🚀 TestFlight 배포 워크플로우가 자동으로 트리거됩니다."
-              else
-                echo "⚠️ PR 병합 조건 불만족:"
-                echo "  - 상태가 OPEN이 아니거나 병합 불가능한 상태입니다"
-              fi
-            else
-              echo "ℹ️ main -> release PR이 아닙니다. 자동 병합을 건너뜁니다."
-              echo "  - 현재: $HEAD_BRANCH -> $BASE_BRANCH"
-            fi
-          else
-            echo "⚠️ PR 번호를 찾을 수 없어 자동 병합을 건너뜁니다."
-          fi
-        env:
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
-
-      - name: Deployment Complete Notification
-        run: |
-          echo "🎉 CHANGELOG 업데이트 및 배포 트리거 완료!"
+          echo "🎉 CHANGELOG 업데이트 완료!"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "📋 배포 정보:"
+          echo "📋 업데이트 정보:"
           echo "  • 버전: v${{ needs.build-and-detect.outputs.new_version }}"
           echo "  • 프로젝트 타입: React Native"
           echo "  • PR 번호: #${{ needs.build-and-detect.outputs.pr_number }}"
-          echo "  • 브랜치: release"
-          echo "  • 다음 단계: TestFlight 자동 배포"
+          echo "  • 업데이트된 파일: CHANGELOG.json, CHANGELOG.md, PREVIOUS_CHANGES.md, README.md"
+          echo "  • 다음 단계: 다른 워크플로우에서 자동 배포 및 PR 머지 진행"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
