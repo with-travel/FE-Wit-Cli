@@ -1,6 +1,15 @@
 {
   "releases": [
     {
+      "version": "1.0.54",
+      "date": "2025-09-05",
+      "timestamp": "2025-09-05T15:11:32Z",
+      "pr_number": 105,
+      "project_type": "react-native",
+      "raw_summary": "\"body_html\": \"\\nSummary by CodeRabbit\\n\\n\\n새 기능\\n\\n앱의 포어그라운드/백그라운드 전환 상태를 추적해 현재 상태를 보다 정확히 반영합니다.\\n사용자가 앱으로 복귀했는지 여부(isComeBack)를 감지해 관련 화면 흐름과 동작을 자연스럽게 유지합니다.\\n상태 표시를 일관되게 동기화해 화면 갱신 및 인터랙션 경험을 안정화했습니다.\\n\\n\\n\\n잡업(Chores)\\n\\niOS 빌드 및 CI 설정을 개선해 빌드 안정성과 재현성을 높였습니다.\\n\\n\\n\\n\",\n  \"active_lock_reason\": null,\n  \"merged\": false,\n  \"mergeable\": true,\n  \"rebaseable\": true,\n  \"mergeable_state\": \"unstable\",\n  \"merged_by\": null,\n  \"comments\": 2,\n  \"review_comments\": 0,\n  \"maintainer_can_modify\": false,\n  \"commits\": 1,\n  \"additions\": 3,\n  \"deletions\": 0,\n  \"changed_files\": 1\n}",
+      "changes": {}
+    },
+    {
       "version": "1.0.53",
       "date": "2025-09-05",
       "timestamp": "2025-09-05T12:13:53Z",
@@ -458,5 +467,11 @@
         ]
       }
     }
-  ]
+  ],
+  "metadata": {
+    "lastUpdated": "2025-09-05T15:11:32Z",
+    "currentVersion": "1.0.54",
+    "projectType": "react-native",
+    "totalReleases": 49
+  }
 }
