@@ -5,12 +5,11 @@ import { useAttachStep } from '@/components/providers/SignupProgressProvider';
 import { authFlowNavigations } from '@/constants/navigations';
 import { SignupFlowStackParamList } from '@/navigations/stack/AuthStackNavigator';
 import { StackScreenProps } from '@react-navigation/stack';
-import { StyleSheet, View, Pressable, Text } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useForm, Controller, useFormContext } from 'react-hook-form';
+import { Controller, useFormContext } from 'react-hook-form';
 import { validateEmail } from '@/utils/validate';
 import { duplicateCheckEmail } from '@/api/auth';
-import { colors } from '@/constants/colors';
 import { useState } from 'react';
 
 type AuthServerSignupEmailProps = StackScreenProps<
@@ -48,11 +47,9 @@ function AuthServerSignupEmailScreen({
 
       if (isAvailable) {
         setEmailCheckStatus('available');
-        // react-hook-form 에러 제거
         clearErrors('email');
       } else {
         setEmailCheckStatus('duplicate');
-        // react-hook-form에 에러 설정
         setError('email', {
           type: 'manual',
           message: '중복된 이메일입니다.',
@@ -69,7 +66,6 @@ function AuthServerSignupEmailScreen({
   };
 
   const onSubmit = () => {
-    // 이메일 중복 체크가 완료되지 않았으면 진행 불가
     if (emailCheckStatus !== 'available') {
       return;
     }
@@ -90,60 +86,40 @@ function AuthServerSignupEmailScreen({
             field: { onChange, onBlur, value },
             fieldState: { error },
           }) => (
-            <View
-              style={{
-                flexDirection: 'row',
-                gap: 12,
-                alignItems: 'center',
+            <InputField
+              label="이메일"
+              keyboardType="email-address"
+              placeholder="kdy_35@naver.com"
+              onBlur={onBlur}
+              onChangeText={text => {
+                onChange(text);
+                // 이메일이 변경되면 중복 체크 상태 초기화
+                if (emailCheckStatus !== 'unchecked') {
+                  setEmailCheckStatus('unchecked');
+                  clearErrors('email');
+                }
               }}
-            >
-              <View
-                style={{
-                  width: emailCheckStatus === 'available' ? '100%' : '75%',
-                }}
-              >
-                <InputField
-                  label="이메일 주소"
-                  keyboardType="email-address"
-                  placeholder="example@email.com"
-                  onBlur={onBlur}
-                  onChangeText={text => {
-                    onChange(text);
-                    // 이메일이 변경되면 중복 체크 상태 초기화
-                    if (emailCheckStatus !== 'unchecked') {
-                      setEmailCheckStatus('unchecked');
-                      clearErrors('email');
-                    }
-                  }}
-                  value={value}
-                  error={
-                    emailCheckStatus === 'duplicate'
-                      ? '중복된 이메일입니다.'
-                      : error?.message
-                  }
-                  note={
-                    emailCheckStatus === 'available'
-                      ? '사용 가능한 이메일입니다.'
-                      : emailCheckStatus === 'unchecked'
-                      ? '중복확인을 해주세요'
-                      : ''
-                  }
-                />
-              </View>
-              {(emailCheckStatus === 'unchecked' ||
-                emailCheckStatus === 'duplicate' ||
-                emailCheckStatus === 'checking') && (
-                <Pressable
-                  onPress={() => checkEmail(value)}
-                  style={styles.duplicateCheckButton}
-                  disabled={emailCheckStatus === 'checking' || !value}
-                >
-                  <Text style={styles.duplicateCheckButtonText}>
-                    {emailCheckStatus === 'checking' ? '확인중...' : '중복확인'}
-                  </Text>
-                </Pressable>
-              )}
-            </View>
+              value={value}
+              error={
+                emailCheckStatus === 'duplicate'
+                  ? '중복된 이메일입니다.'
+                  : error?.message
+              }
+              note={
+                emailCheckStatus === 'available'
+                  ? '사용 가능한 이메일입니다.'
+                  : emailCheckStatus === 'unchecked'
+                  ? '중복확인을 해주세요'
+                  : emailCheckStatus === 'checking'
+                  ? '확인중...'
+                  : ''
+              }
+              check={emailCheckStatus !== 'available'}
+              checkButtonText={
+                emailCheckStatus === 'checking' ? '확인중...' : '중복확인'
+              }
+              onCheck={() => checkEmail(value)}
+            />
           )}
           name="email"
           rules={{
@@ -222,19 +198,5 @@ const styles = StyleSheet.create({
     bottom: 32,
     right: 0,
     left: 0,
-  },
-  duplicateCheckButton: {
-    backgroundColor: colors.PRIMARY_COLOR,
-    borderRadius: 4,
-    justifyContent: 'center',
-    alignItems: 'center',
-    minWidth: 80,
-    height: 50,
-    top: 3,
-  },
-  duplicateCheckButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '500',
   },
 });
