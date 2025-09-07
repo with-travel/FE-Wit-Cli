@@ -7,7 +7,6 @@ import { SignupFlowStackParamList } from '@/navigations/stack/AuthStackNavigator
 import { StackScreenProps } from '@react-navigation/stack';
 import React, { useEffect, useState } from 'react';
 import {
-  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -52,9 +51,11 @@ function AuthServerSignupAdditionalInfoScreen({
     setDaysInMonth(Array.from({ length: daysCount }, (_, i) => i + 1));
   }, [selectedYear, selectedMonth]);
 
-  const handleDateConfirm = (onChange: (date: Date) => void) => {
-    const selectedDate = new Date(selectedYear, selectedMonth - 1, selectedDay);
-    onChange(selectedDate);
+  const handleDateConfirm = (onChange: (date: string) => void) => {
+    const formattedDate = `${selectedYear}-${selectedMonth
+      .toString()
+      .padStart(2, '0')}-${selectedDay.toString().padStart(2, '0')}`;
+    onChange(formattedDate);
     setShowDatePicker(false);
   };
   const {
@@ -63,7 +64,7 @@ function AuthServerSignupAdditionalInfoScreen({
     formState: { isValid },
   } = useFormContext();
 
-  const onSubmit = (data: any) => {
+  const onSubmit = () => {
     navigation.navigate(
       authFlowNavigations.AUTH_SERVER_SIGNUP_PHONE_AUTHORIZATION,
     );
@@ -104,7 +105,7 @@ function AuthServerSignupAdditionalInfoScreen({
         <Controller
           control={control}
           name="birthDate"
-          render={({ field: { onChange, value }, fieldState: { error } }) => (
+          render={({ field: { onChange, value } }) => (
             <View style={{ marginBottom: 24 }}>
               <Text style={styles.sectionTitle}>생년월일</Text>
               <TouchableOpacity
@@ -113,11 +114,13 @@ function AuthServerSignupAdditionalInfoScreen({
               >
                 <Text style={styles.datePickerText}>
                   {value
-                    ? value.toLocaleDateString('ko-KR', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                      })
+                    ? (() => {
+                        const [year, month, day] = value.split('-');
+                        return `${year}년 ${parseInt(month, 10)}월 ${parseInt(
+                          day,
+                          10,
+                        )}일`;
+                      })()
                     : '생년월일 선택'}
                 </Text>
               </TouchableOpacity>
