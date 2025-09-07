@@ -380,9 +380,14 @@ jobs:
                   }
                   
                   # 동적 카테고리를 parsed_changes에 추가
-                  for key, value in categories.items():
-                      new_release["parsed_changes"][key] = value["items"]
-                      print(f"📝 parsed_changes에 추가: {key} -> {len(value['items'])}개 아이템")
+                  if categories:
+                      for key, value in categories.items():
+                          new_release["parsed_changes"][key] = value["items"]
+                          print(f"📝 parsed_changes에 추가: {key} -> {len(value['items'])}개 아이템")
+                  else:
+                      # 카테고리가 없으면 기본 항목 추가
+                      print("⚠️ 카테고리가 감지되지 않아 기본 항목을 추가합니다")
+                      new_release["parsed_changes"]["general"] = [f"PR #{pr_number}의 변경사항이 반영되었습니다."]
                   
                   # CHANGELOG.json 업데이트
                   try:
