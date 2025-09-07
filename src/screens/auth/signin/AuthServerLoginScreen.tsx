@@ -48,6 +48,7 @@ export default AuthServerLoginScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingHorizontal: 20,
   },
   inputContainer: {
     paddingTop: 8,
