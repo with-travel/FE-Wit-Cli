@@ -331,10 +331,7 @@ jobs:
                           safe_key = f"category_{len(detected_categories)}"
                       
                       print(f"✅ 카테고리 추가: '{clean_text}' -> '{safe_key}' ({len(items)}개 아이템)")
-                      detected_categories[safe_key] = {
-                          'title': clean_text,
-                          'items': items
-                      }
+                      detected_categories[safe_key] = items
                   else:
                       print(f"❌ '{clean_text}' 카테고리에서 아이템을 찾을 수 없음")
               
@@ -362,9 +359,9 @@ jobs:
                   categories = detect_categories(html_content)
                   
                   print("🎯 감지된 카테고리들:")
-                  for key, value in categories.items():
-                      print(f"  - {key}: {value['title']} ({len(value['items'])}개 항목)")
-                      for item in value['items'][:3]:  # 첫 3개 아이템만 미리보기
+                  for key, items in categories.items():
+                      print(f"  - {key}: ({len(items)}개 항목)")
+                      for item in items[:3]:  # 첫 3개 아이템만 미리보기
                           print(f"    • {item[:80]}...")
                   
                   # Raw summary 읽기
@@ -377,13 +374,8 @@ jobs:
                       "date": today,
                       "pr_number": pr_number,
                       "raw_summary": raw_summary,
-                      "parsed_changes": {}
+                      "parsed_changes": categories
                   }
-                  
-                  # 동적 카테고리를 parsed_changes에 추가
-                  for key, value in categories.items():
-                      new_release["parsed_changes"][key] = value["items"]
-                      print(f"📝 parsed_changes에 추가: {key} -> {len(value['items'])}개 아이템")
                   
                   # CHANGELOG.json 업데이트
                   try:
@@ -412,7 +404,7 @@ jobs:
                       json.dump(changelog_data, f, indent=2, ensure_ascii=False)
                   
                   print("✅ CHANGELOG.json 업데이트 완료!")
-                  print(f"📊 총 {len(categories)}개 카테고리, {sum(len(v['items']) for v in categories.values())}개 변경사항")
+                  print(f"📊 총 {len(categories)}개 카테고리, {sum(len(items) for items in categories.values())}개 변경사항")
                   
               except Exception as e:
                   print(f"❌ 파싱 오류: {e}")
@@ -459,21 +451,14 @@ jobs:
                       f.write(f"## [{release.get('version', 'Unknown')}] - {release.get('date', 'Unknown')}\n\n")
                       
                       # AI가 생성한 모든 카테고리를 그대로 출력
-                      for category_key, items in release.get('parsed_changes', {}).items():
+                      for category_key, items in release['parsed_changes'].items():
                           if items:
-                              # JSON에서 원본 제목 가져오기 (없으면 키를 제목으로 사용)
-                              title = items.get('title', category_key.replace('_', ' ').title()) if isinstance(items, dict) else category_key.replace('_', ' ').title()
-                              
-                              # items가 dict 형태인지 확인 (새 형식)
-                              if isinstance(items, dict) and 'items' in items:
-                                  actual_items = items['items']
-                                  title = items['title']
-                              else:
-                                  actual_items = items  # 기존 형식 호환
+                              # 카테고리 키를 제목으로 변환 (언더스코어를 공백으로, 첫 글자 대문자)
+                              title = category_key.replace('_', ' ').title()
                               
                               f.write(f"**{title}**\n")
                               
-                              for item in actual_items:
+                              for item in items:
                                   f.write(f"- {item}\n")
                               f.write("\n")
                       
