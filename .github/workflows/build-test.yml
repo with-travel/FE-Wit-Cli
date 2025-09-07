@@ -2,7 +2,7 @@ name: 🧪 Build Test
 
 on:
   pull_request_target:
-    types: [opened, synchronize]
+    types: [opened, ready_for_review]
     branches: ['release']
 
 permissions:

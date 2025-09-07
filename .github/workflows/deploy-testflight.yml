@@ -681,10 +681,21 @@ jobs:
         run: |
           echo "🔍 PR 번호 추출 및 자동 병합 준비 중..."
 
-          # workflow_run에서 PR 번호 추출
+          # workflow_run에서 PR 번호 추출 (개선된 방식)
+          echo "🔍 Workflow run head SHA: ${{ github.event.workflow_run.head_sha }}"
+
+          # 여러 방법으로 PR 번호 찾기
           PR_NUMBER=$(gh api repos/${{ github.repository }}/pulls \
             --jq '.[] | select(.head.sha == "${{ github.event.workflow_run.head_sha }}") | .number' \
             | head -1)
+
+          # 첫 번째 방법이 실패하면 다른 방법 시도
+          if [ -z "$PR_NUMBER" ]; then
+            echo "⚠️ 첫 번째 방법 실패, 다른 방법으로 PR 번호 찾는 중..."
+            PR_NUMBER=$(gh api repos/${{ github.repository }}/pulls \
+              --jq '.[] | select(.state == "open" and .base.ref == "release" and .head.ref == "main") | .number' \
+              | head -1)
+          fi
 
           if [ -n "$PR_NUMBER" ]; then
             echo "📋 PR #$PR_NUMBER 정보 확인 중..."
