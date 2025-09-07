@@ -235,20 +235,17 @@ jobs:
 
           echo "📝 CodeRabbit Summary 동적 파싱 시작..."
 
-          # Summary 섹션 추출 (changelog-update.yml과 동일한 방식)
+          # Summary 섹션 추출 (changelog-update.yml과 완전히 동일한 방식)
           sed -n '/<h2[^>]*>Summary by CodeRabbit<\/h2>/,/<\/div>/p' pr_content.html > summary_section.html
 
           # Summary가 제대로 추출되었는지 확인
           echo "📄 추출된 Summary 섹션 크기: $(wc -c < summary_section.html) bytes"
           if [ $(wc -c < summary_section.html) -lt 100 ]; then
-            echo "⚠️ Summary 섹션이 너무 작습니다. 다른 방식으로 추출 시도..."
-            # changelog-update.yml과 동일한 방식
+            echo "⚠️ Summary 섹션이 너무 작습니다. 전체 PR 내용에서 다시 추출 시도..."
             grep -A 50 "Summary by CodeRabbit" pr_content.html > summary_section.html
-            SUMMARY_SIZE=$(wc -c < summary_section.html)
-            echo "📄 재추출된 Summary 섹션 크기: ${SUMMARY_SIZE} bytes"
           fi
 
-          # Raw summary 저장 (백업용) - changelog-update.yml과 동일
+          # Raw summary 저장 (백업용)
           cat summary_section.html | sed 's/<[^>]*>//g' | sed 's/&nbsp;/ /g; s/&amp;/\&/g; s/&lt;/</g; s/&gt;/>/g; s/&quot;/"/g' > raw_summary.txt
 
           echo "🔍 동적 카테고리 추출 중..."
@@ -415,8 +412,7 @@ jobs:
                       json.dump(changelog_data, f, indent=2, ensure_ascii=False)
                   
                   print("✅ CHANGELOG.json 업데이트 완료!")
-                  total_items = sum(len(v['items']) for v in categories.values())
-                  print(f"📊 총 {len(categories)}개 카테고리, {total_items}개 변경사항")
+                  print(f"📊 총 {len(categories)}개 카테고리, {sum(len(v['items']) for v in categories.values())}개 변경사항")
                   
               except Exception as e:
                   print(f"❌ 파싱 오류: {e}")
@@ -441,19 +437,29 @@ jobs:
 
           python3 << 'PYTHON_SCRIPT'
           import json
+          import traceback
 
           try:
               with open('CHANGELOG.json', 'r', encoding='utf-8') as f:
                   data = json.load(f)
               
+              print(f"🔍 CHANGELOG.json 구조 확인:")
+              print(f"  - 키들: {list(data.keys())}")
+              if 'releases' in data and data['releases']:
+                  print(f"  - 첫 번째 릴리즈 키들: {list(data['releases'][0].keys())}")
+                  if 'parsed_changes' in data['releases'][0]:
+                      print(f"  - parsed_changes 키들: {list(data['releases'][0]['parsed_changes'].keys())}")
+                  else:
+                      print("  - ❌ parsed_changes 키가 없습니다!")
+              
               with open('CHANGELOG.md', 'w', encoding='utf-8') as f:
                   f.write("# Changelog\n\n")
 
-                  for release in data['releases']:
-                      f.write(f"## [{release['version']}] - {release['date']}\n\n")
+                  for release in data.get('releases', []):
+                      f.write(f"## [{release.get('version', 'Unknown')}] - {release.get('date', 'Unknown')}\n\n")
                       
                       # AI가 생성한 모든 카테고리를 그대로 출력
-                      for category_key, items in release['parsed_changes'].items():
+                      for category_key, items in release.get('parsed_changes', {}).items():
                           if items:
                               # JSON에서 원본 제목 가져오기 (없으면 키를 제목으로 사용)
                               title = items.get('title', category_key.replace('_', ' ').title()) if isinstance(items, dict) else category_key.replace('_', ' ').title()
@@ -477,6 +483,18 @@ jobs:
               
           except Exception as e:
               print(f"❌ CHANGELOG.md 생성 실패: {e}")
+              print(f"❌ 상세 오류:")
+              traceback.print_exc()
+              
+              # 디버깅을 위해 CHANGELOG.json 내용 출력
+              try:
+                  with open('CHANGELOG.json', 'r', encoding='utf-8') as f:
+                      content = f.read()
+                      print(f"📄 CHANGELOG.json 내용:")
+                      print(content[:1000] + "..." if len(content) > 1000 else content)
+              except:
+                  print("❌ CHANGELOG.json 파일을 읽을 수 없습니다.")
+              
               exit(1)
           PYTHON_SCRIPT
 
