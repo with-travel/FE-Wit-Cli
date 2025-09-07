@@ -1,6 +1,14 @@
 {
   "releases": [
     {
+      "version": "1.0.55",
+      "date": "2025-09-07",
+      "timestamp": "2025-09-07T13:29:33Z",
+      "pr_number": 109,
+      "raw_summary": "\"body_html\": \"\\nSummary by CodeRabbit\\n\\n문서화\\n\\n최신 변경 사항을 반영해 변경 이력이 업데이트되었습니다(버전 1.0.54 관련 항목 다수 추가).\\nPR #105, #106에 대한 요약 블록이 추가되어 릴리스 내역 확인이 용이해졌습니다.\\n마지막 업데이트 시간 및 메타데이터가 최신 시각으로 갱신되었습니다.\\n실행 로그 예시의 타임스탬프가 보강되었습니다.\\n기능 동작, 성능, 오류 처리에는 변화가 없습니다.\\n\\n\\n\\n\",\n  \"active_lock_reason\": null,\n  \"merged\": false,\n  \"mergeable\": true,\n  \"rebaseable\": true,\n  \"mergeable_state\": \"clean\",\n  \"merged_by\": null,\n  \"comments\": 2,\n  \"review_comments\": 0,\n  \"maintainer_can_modify\": false,\n  \"commits\": 1,\n  \"additions\": 0,\n  \"deletions\": 1122,\n  \"changed_files\": 1\n}",
+      "changes": {}
+    },
+    {
       "version": "1.0.54",
       "project_type": "react-native",
       "date": "2025-09-07",
