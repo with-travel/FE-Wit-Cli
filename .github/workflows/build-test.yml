@@ -1,19 +1,9 @@
-# name: 🧪 Build Test
-
-# on:
-#   pull_request_target:
-#     types: [opened, ready_for_review]
-#     branches:
-#       - 'release'
-name: 🧪 Build Test (DEPRECATED - auto-changelog-control.yml로 통합됨)
+name: 🧪 Build Test
 
 on:
-  # 비활성화됨 - auto-changelog-control.yml 사용
-  workflow_dispatch:
-    inputs:
-      deprecated:
-        description: '이 워크플로우는 비활성화되었습니다'
-        required: false
+  pull_request_target:
+    types: [opened, synchronize]
+    branches: ['release']
 
 permissions:
   contents: read
@@ -107,3 +97,4 @@ jobs:
         run: |
           echo "✅ 빌드 테스트가 성공했습니다!"
           echo "📋 다음 단계: CHANGELOG 업데이트 워크플로우가 자동으로 시작됩니다."
+          echo "🔗 워크플로우 체인: Build Test → CHANGELOG Update → TestFlight Deploy"
