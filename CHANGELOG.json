@@ -1,6 +1,13 @@
 {
   "releases": [
     {
+      "version": "1.0.57",
+      "date": "2025-09-07",
+      "pr_number": 113,
+      "raw_summary": "\"body_html\": \"\\nSummary by CodeRabbit\\n\\nNew Features\\n\\n입력 필드에 선택적 중복확인 버튼 추가(기본 라벨 ‘중복확인’). 버튼으로 중복 검사 실행, 입력과 버튼이 가로 배치.\\n\\n\\nRefactor\\n\\n회원가입 이메일 화면을 단일 입력 컴포넌트로 통합해 중복확인·유효성·오류/안내 문구를 한 곳에서 처리. 레이블/placeholder 개선.\\n추가정보 화면의 생년월일을 문자열(YYYY-MM-DD)로 저장하고 화면에는 한국어 형식(YYYY년 M월 D일)으로 표시. 제출 흐름 단순화.\\n\\n\\n\\n\",\n  \"active_lock_reason\": null,\n  \"merged\": false,\n  \"mergeable\": true,\n  \"rebaseable\": true,\n  \"mergeable_state\": \"clean\",\n  \"merged_by\": null,\n  \"comments\": 2,\n  \"review_comments\": 1,\n  \"maintainer_can_modify\": false,\n  \"commits\": 3,\n  \"additions\": 97,\n  \"deletions\": 89,\n  \"changed_files\": 3\n}",
+      "parsed_changes": {}
+    },
+    {
       "version": "1.0.56",
       "date": "2025-09-07",
       "pr_number": 111,
@@ -549,9 +556,9 @@
     }
   ],
   "metadata": {
-    "lastUpdated": "2025-09-07T14:58:31Z",
-    "currentVersion": "1.0.56",
+    "lastUpdated": "2025-09-07T17:34:04Z",
+    "currentVersion": "1.0.57",
     "projectType": "react-native",
-    "totalReleases": 58
+    "totalReleases": 59
   }
 }
