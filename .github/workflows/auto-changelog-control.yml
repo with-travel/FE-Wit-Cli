@@ -252,7 +252,7 @@ jobs:
           echo "📄 Summary 섹션 미리보기:"
           head -10 summary_section.html
 
-          # Python으로 동적 파싱 (changelog-update.yml과 완전히 동일)
+          # Python으로 동적 파싱 (changelog-update.yml에서 복사)
           cat > parse_changelog.py << 'EOF'
           import re
           import json
@@ -331,7 +331,10 @@ jobs:
                           safe_key = f"category_{len(detected_categories)}"
                       
                       print(f"✅ 카테고리 추가: '{clean_text}' -> '{safe_key}' ({len(items)}개 아이템)")
-                      detected_categories[safe_key] = items
+                      detected_categories[safe_key] = {
+                          'title': clean_text,
+                          'items': items
+                      }
                   else:
                       print(f"❌ '{clean_text}' 카테고리에서 아이템을 찾을 수 없음")
               
@@ -359,9 +362,9 @@ jobs:
                   categories = detect_categories(html_content)
                   
                   print("🎯 감지된 카테고리들:")
-                  for key, items in categories.items():
-                      print(f"  - {key}: ({len(items)}개 항목)")
-                      for item in items[:3]:  # 첫 3개 아이템만 미리보기
+                  for key, value in categories.items():
+                      print(f"  - {key}: {value['title']} ({len(value['items'])}개 항목)")
+                      for item in value['items'][:3]:  # 첫 3개 아이템만 미리보기
                           print(f"    • {item[:80]}...")
                   
                   # Raw summary 읽기
@@ -374,8 +377,13 @@ jobs:
                       "date": today,
                       "pr_number": pr_number,
                       "raw_summary": raw_summary,
-                      "parsed_changes": categories
+                      "parsed_changes": {}
                   }
+                  
+                  # 동적 카테고리를 parsed_changes에 추가
+                  for key, value in categories.items():
+                      new_release["parsed_changes"][key] = value["items"]
+                      print(f"📝 parsed_changes에 추가: {key} -> {len(value['items'])}개 아이템")
                   
                   # CHANGELOG.json 업데이트
                   try:
@@ -404,7 +412,7 @@ jobs:
                       json.dump(changelog_data, f, indent=2, ensure_ascii=False)
                   
                   print("✅ CHANGELOG.json 업데이트 완료!")
-                  print(f"📊 총 {len(categories)}개 카테고리, {sum(len(items) for items in categories.values())}개 변경사항")
+                  print(f"📊 총 {len(categories)}개 카테고리, {sum(len(v['items']) for v in categories.values())}개 변경사항")
                   
               except Exception as e:
                   print(f"❌ 파싱 오류: {e}")
