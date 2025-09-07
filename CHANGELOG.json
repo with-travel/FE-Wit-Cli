@@ -1,6 +1,29 @@
 {
   "releases": [
     {
+      "version": "1.0.58",
+      "date": "2025-09-07",
+      "pr_number": 116,
+      "raw_summary": "\"body_html\": \"\\nSummary by CodeRabbit\\n\\n\\nNew Features\\n\\n입력 필드에 선택적 중복확인 버튼 추가(기본 라벨 ‘중복확인’) — 입력과 버튼이 가로 배치되고 onCheck로 검사 트리거.\\n\\n\\n\\nRefactor\\n\\n이메일 가입 화면을 단일 입력으로 통합해 중복확인·유효성·오류/안내를 일관 처리.\\n여행 성향 문항을 문항별 컨트롤러로 분리해 개별 검증 적용.\\n추가정보의 생년월일을 YYYY-MM-DD 문자열로 저장하고 한국어 형식으로 표시.\\n일부 내부 API 경로 및 빌드 스크립트 구조 정리, iOS 빌드 항목 정리.\\n\\n\\n\\nDocumentation\\n\\nCHANGELOG 구조 및 포맷 재정비, README에 최신 릴리스 반영.\\n\\n\\n\\nChores\\n\\n앱·패키지 버전 1.0.57 → 1.0.58으로 업데이트.\\n\\n\\n\\n\",\n  \"active_lock_reason\": null,\n  \"merged\": false,\n  \"mergeable\": true,\n  \"rebaseable\": true,\n  \"mergeable_state\": \"clean\",\n  \"merged_by\": null,\n  \"comments\": 2,\n  \"review_comments\": 0,\n  \"maintainer_can_modify\": false,\n  \"commits\": 1,\n  \"additions\": 1,\n  \"deletions\": 0,\n  \"changed_files\": 1\n}",
+      "parsed_changes": {
+        "new_features": [
+          "입력 필드에 선택적 중복확인 버튼 추가(기본 라벨 ‘중복확인’) — 입력과 버튼이 가로 배치되고 onCheck로 검사 트리거."
+        ],
+        "refactor": [
+          "이메일 가입 화면을 단일 입력으로 통합해 중복확인·유효성·오류/안내를 일관 처리.",
+          "여행 성향 문항을 문항별 컨트롤러로 분리해 개별 검증 적용.",
+          "추가정보의 생년월일을 YYYY-MM-DD 문자열로 저장하고 한국어 형식으로 표시.",
+          "일부 내부 API 경로 및 빌드 스크립트 구조 정리, iOS 빌드 항목 정리."
+        ],
+        "documentation": [
+          "CHANGELOG 구조 및 포맷 재정비, README에 최신 릴리스 반영."
+        ],
+        "chores": [
+          "앱·패키지 버전 1.0.57 → 1.0.58으로 업데이트."
+        ]
+      }
+    },
+    {
       "version": "1.0.57",
       "date": "2025-09-07",
       "pr_number": 113,
@@ -556,9 +579,9 @@
     }
   ],
   "metadata": {
-    "lastUpdated": "2025-09-07T17:34:04Z",
-    "currentVersion": "1.0.57",
+    "lastUpdated": "2025-09-07T19:17:42Z",
+    "currentVersion": "1.0.58",
     "projectType": "react-native",
-    "totalReleases": 59
+    "totalReleases": 60
   }
 }
