@@ -1,10 +1,17 @@
 name: Release to TestFlight (DEPRECATED - 분리됨)
 
+# on:
+#   pull_request_target:
+#     types: [opened, ready_for_review]
+#     branches:
+#       - 'release'
 on:
-  pull_request_target:
-    types: [opened, ready_for_review]
-    branches:
-      - 'release'
+  # 비활성화됨 - auto-changelog-control.yml 사용
+  workflow_dispatch:
+    inputs:
+      deprecated:
+        description: '이 워크플로우는 비활성화되었습니다'
+        required: false
 
 permissions:
   contents: write
