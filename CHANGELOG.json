@@ -2,6 +2,14 @@
   "releases": [
     {
       "version": "1.0.54",
+      "project_type": "react-native",
+      "date": "2025-09-07",
+      "pr_number": 107,
+      "raw_summary": "\"body_html\": \"\\nSummary by CodeRabbit\\n\\n스타일\\n\\n로그인(서버) 화면 컨테이너에 좌우 패딩(20)을 추가해 콘텐츠가 화면 가장자리와 밀착되지 않도록 조정했습니다.\\n다양한 해상도에서 여백 일관성과 시각적 균형을 개선하여 읽기 쉬운 레이아웃을 제공합니다.\\n화면 구성 변경만 있으며, 로그인 동작이나 상호작용 흐름에는 영향이 없습니다.\\n\\n\\n\\n\",\n  \"active_lock_reason\": null,\n  \"merged\": false,\n  \"mergeable\": true,\n  \"rebaseable\": true,\n  \"mergeable_state\": \"unstable\",\n  \"merged_by\": null,\n  \"comments\": 2,\n  \"review_comments\": 0,\n  \"maintainer_can_modify\": false,\n  \"commits\": 1,\n  \"additions\": 1,\n  \"deletions\": 0,\n  \"changed_files\": 1\n}",
+      "parsed_changes": {}
+    },
+    {
+      "version": "1.0.54",
       "date": "2025-09-05",
       "timestamp": "2025-09-05T17:12:39Z",
       "pr_number": 106,
@@ -514,9 +522,9 @@
     }
   ],
   "metadata": {
-    "lastUpdated": "2025-09-05T17:12:39Z",
+    "lastUpdated": "2025-09-07T12:08:00Z",
     "currentVersion": "1.0.54",
     "projectType": "react-native",
-    "totalReleases": 54
+    "totalReleases": 55
   }
 }
