@@ -36,15 +36,13 @@ permissions:
   pull-requests: write
 
 jobs:
-  # Job 1: CodeRabbit Summary 감지 및 버전 업데이트
-  detect-and-version:
-    name: 📋 CodeRabbit Summary 감지 및 🔢 버전 업데이트
+  # Job 1: CodeRabbit Summary 감지
+  detect-summary:
+    name: 📋 CodeRabbit Summary 감지
     runs-on: macos-14
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     outputs:
       summary_found: ${{ steps.detect_summary.outputs.summary_found }}
-      new_version: ${{ steps.versioning.outputs.new_version }}
-      current_version: ${{ steps.versioning.outputs.current_version }}
       pr_number: ${{ steps.get_pr.outputs.pr_number }}
     steps:
       - name: Checkout main branch
@@ -146,29 +144,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
 
-      - name: Increment version and sync native files
-        id: versioning
-        run: |
-          echo "📦 버전 업데이트 시작..."
-
-          # 현재 버전 확인
-          CURRENT_VERSION=$(./.github/scripts/rn_version_manager.sh get)
-          echo "📋 현재 버전: $CURRENT_VERSION"
-
-          # 버전 증가
-          NEW_VERSION=$(./.github/scripts/rn_version_manager.sh increment)
-          echo "📦 새 버전: $NEW_VERSION"
-
-          # 네이티브 파일 동기화
-          ./.github/scripts/rn_version_manager.sh sync
-          echo "✅ 네이티브 파일 동기화 완료"
-
-          # GitHub Output 설정
-          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
-
-          echo "📦 버전 업데이트 완료: $CURRENT_VERSION → $NEW_VERSION"
-
       - name: Upload PR content for next job
         if: steps.detect_summary.outputs.summary_found == 'true'
         uses: actions/upload-artifact@v4
@@ -177,12 +152,14 @@ jobs:
           path: pr_content.html
           retention-days: 1
 
-  # Job 2: CHANGELOG 업데이트 및 문서 생성
+  # Job 2: 버전 업데이트 및 CHANGELOG 생성
   update-changelog:
-    name: 📝 CHANGELOG 업데이트 및 문서 생성
+    name: 📝 버전 업데이트 및 CHANGELOG 생성
     runs-on: macos-14
-    needs: detect-and-version
-    if: needs.detect-and-version.outputs.summary_found == 'true'
+    needs: detect-summary
+    if: needs.detect-summary.outputs.summary_found == 'true'
+    outputs:
+      new_version: ${{ steps.versioning.outputs.new_version }}
     steps:
       - name: Checkout main branch
         uses: actions/checkout@v4
@@ -199,17 +176,42 @@ jobs:
       - name: Download PR content
         uses: actions/download-artifact@v4
         with:
-          name: pr-content-${{ needs.detect-and-version.outputs.pr_number }}
+          name: pr-content-${{ needs.detect-summary.outputs.pr_number }}
 
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
 
+      - name: Grant execute permission to scripts
+        run: |
+          echo "📋 스크립트 파일 권한 설정 중..."
+          if [ -f ".github/scripts/rn_version_manager.sh" ]; then
+            chmod +x .github/scripts/rn_version_manager.sh
+            echo "✅ rn_version_manager.sh 권한 설정 완료"
+          else
+            echo "❌ rn_version_manager.sh 파일을 찾을 수 없습니다!"
+            exit 1
+          fi
+
+      - name: Increment version and sync native files
+        id: versioning
+        run: |
+          echo "📦 버전 업데이트 시작..."
+
+          # changelog-update.yml 방식으로 간단하게 처리
+          NEW_VERSION=$(./.github/scripts/rn_version_manager.sh increment)
+          ./.github/scripts/rn_version_manager.sh sync
+
+          echo "📦 새 버전: $NEW_VERSION"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+          echo "✅ 버전 업데이트 완료: $NEW_VERSION"
+
       - name: Enhanced CodeRabbit Summary Parsing and CHANGELOG Update
         run: |
-          PR_NUMBER="${{ needs.detect-and-version.outputs.pr_number }}"
-          VERSION="${{ needs.detect-and-version.outputs.new_version }}"
+          PR_NUMBER="${{ needs.detect-summary.outputs.pr_number }}"
+          VERSION="${{ steps.versioning.outputs.new_version }}"
           TODAY=$(date '+%Y-%m-%d')
           TIMESTAMP=$(date '+%Y-%m-%dT%H:%M:%SZ')
 
@@ -580,12 +582,12 @@ jobs:
         run: |
           echo "📝 모든 변경사항을 커밋하고 푸시합니다..."
 
-          git add package.json ios/Wit/Info.plist android/app/build.gradle CHANGELOG.json CHANGELOG.md PREVIOUS_CHANGES.md README.md
+          git add package.json ios/Wit/Info.plist android/app/build.gradle CHANGELOG.json CHANGELOG.md PREVIOUS_CHANGES.md
 
           if ! git diff --staged --quiet; then
             # 커밋 메시지 생성
-            VERSION="${{ needs.detect-and-version.outputs.new_version }}"
-            PR_NUMBER="${{ needs.detect-and-version.outputs.pr_number }}"
+            VERSION="${{ steps.versioning.outputs.new_version }}"
+            PR_NUMBER="${{ needs.detect-summary.outputs.pr_number }}"
             COMMIT_MSG="chore: update version to v${VERSION} and CHANGELOG (PR #${PR_NUMBER}) [skip ci]"
             git commit -m "$COMMIT_MSG"
             
@@ -601,98 +603,22 @@ jobs:
 
       - name: Create and push Git tag
         run: |
-          git tag "v${{ needs.detect-and-version.outputs.new_version }}"
-          git push origin "v${{ needs.detect-and-version.outputs.new_version }}"
+          VERSION="v${{ steps.versioning.outputs.new_version }}"
 
-      - name: Update README.md
-        run: |
-          echo "📄 README.md 업데이트 중..."
+          echo "🏷️ Git 태그 생성 중: $VERSION"
 
-          python3 << 'PYTHON_SCRIPT'
-          import json
-          import os
+          # 기존 태그 존재 여부 확인
+          if git tag -l "$VERSION" | grep -q "$VERSION"; then
+            echo "⚠️ 태그 $VERSION이 이미 존재합니다. 기존 태그를 삭제하고 새로 생성합니다."
+            git tag -d "$VERSION" || true
+            git push origin --delete "$VERSION" || true
+          fi
 
-          def get_category_title(key):
-              """카테고리 키를 한국어 제목으로 변환"""
-              category_titles = {
-                  'new_features': '신규 기능',
-                  'bug_fixes': '버그 수정', 
-                  'style': '스타일',
-                  'refactor': '리팩토링',
-                  'chores': '작업 정리',
-                  'documentation': '문서',
-                  'tests': '테스트',
-                  'performance': '성능',
-                  'security': '보안',
-                  'general': '일반'
-              }
-              return category_titles.get(key.lower(), key.replace('_', ' ').title())
+          # 새 태그 생성 및 푸시
+          git tag "$VERSION"
+          git push origin "$VERSION"
 
-          try:
-              # CHANGELOG.json에서 최신 버전 정보 추출
-              with open('CHANGELOG.json', 'r', encoding='utf-8') as f:
-                  data = json.load(f)
-              
-              if not data.get('releases'):
-                  print("❌ CHANGELOG.json에 릴리즈 정보가 없습니다")
-                  exit(1)
-              
-              latest_release = data['releases'][0]
-              version = latest_release.get('version', 'Unknown')
-              date = latest_release.get('date', latest_release.get('timestamp', '')[:10])
-              pr_number = latest_release.get('pr_number', 'N/A')
-              parsed_changes = latest_release.get('parsed_changes', {})
-              
-              print(f"📋 최신 버전: v{version} ({date})")
-              
-              # README.md 생성 (기본 형식)
-              with open('README.md', 'w', encoding='utf-8') as f:
-                  f.write("# Wit App\n\n")
-                  f.write("여행 친구 찾기\n\n")
-                  f.write("---\n\n")
-                  f.write(f"## 최신 버전: v{version} ({date})\n\n")
-                  f.write(f"**PR:** #{pr_number}\n\n")
-                  
-                  # 변경사항 섹션
-                  f.write("### 변경 사항\n\n")
-                  
-                  if parsed_changes and any(items for items in parsed_changes.values() if items):
-                      for category_key, items in parsed_changes.items():
-                          if items and len(items) > 0:
-                              # 카테고리가 dict 형태인 경우 (title과 items가 분리된 경우)
-                              if isinstance(items, dict) and 'items' in items:
-                                  actual_items = items['items']
-                                  title = items.get('title', get_category_title(category_key))
-                              else:
-                                  actual_items = items
-                                  title = get_category_title(category_key)
-                              
-                              f.write(f"**{title}**\n")
-                              for item in actual_items:
-                                  f.write(f"- {item}\n")
-                              f.write("\n")
-                  else:
-                      f.write(f"**일반**\n")
-                      f.write(f"- PR #{pr_number}의 변경사항이 반영되었습니다.\n\n")
-                  
-                  # 이전 변경사항 링크
-                  f.write("### 이전 변경 사항\n\n")
-                  f.write("[이전 변경사항 보기](PREVIOUS_CHANGES.md)\n\n")
-                  
-                  # 문서 섹션
-                  f.write("**DOCUMENTATION**\n\n")
-                  f.write("- Expo -> Cli로 변경되었습니다.\n\n")
-                  f.write("---\n\n")
-                  f.write("<!-- [이전 변경사항 보기](PREVIOUS_CHANGES.md) -->\n")
-              
-              print("✅ README.md 업데이트 완료")
-              
-          except Exception as e:
-              print(f"❌ README.md 업데이트 실패: {e}")
-              import traceback
-              print(f"📋 상세 오류:\n{traceback.format_exc()}")
-              # README 업데이트 실패는 전체 워크플로우를 중단시키지 않음
-          PYTHON_SCRIPT
+          echo "✅ Git 태그 $VERSION 생성 및 푸시 완료"
 
       - name: Cleanup
         run: |
@@ -703,10 +629,9 @@ jobs:
           echo "🎉 버전 업데이트 및 CHANGELOG 업데이트 완료!"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "📋 업데이트 정보:"
-          echo "  • 이전 버전: ${{ needs.detect-and-version.outputs.current_version }}"
-          echo "  • 새 버전: v${{ needs.detect-and-version.outputs.new_version }}"
+          echo "  • 새 버전: v${{ steps.versioning.outputs.new_version }}"
           echo "  • 프로젝트 타입: React Native"
-          echo "  • PR 번호: #${{ needs.detect-and-version.outputs.pr_number }}"
+          echo "  • PR 번호: #${{ needs.detect-summary.outputs.pr_number }}"
           echo "  • 업데이트된 파일:"
           echo "    - package.json (버전 업데이트)"
           echo "    - ios/Wit/Info.plist (iOS 버전 동기화)"
@@ -714,7 +639,6 @@ jobs:
           echo "    - CHANGELOG.json (릴리즈 정보)"
           echo "    - CHANGELOG.md (마크다운 문서)"
           echo "    - PREVIOUS_CHANGES.md (이전 변경사항)"
-          echo "    - README.md (프로젝트 문서)"
           echo "  • 다음 단계: TestFlight 배포 워크플로우 자동 실행"
           echo "  • 최종 단계: 배포 완료 후 PR 자동 머지"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
