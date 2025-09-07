@@ -384,6 +384,13 @@ jobs:
                   for key, value in categories.items():
                       new_release["parsed_changes"][key] = value["items"]
                       print(f"📝 parsed_changes에 추가: {key} -> {len(value['items'])}개 아이템")
+
+                  # 새로 생성된 릴리즈 정보 출력
+                  print("\n" + "="*50)
+                  print("✅ 파싱 완료! CHANGELOG.json에 추가될 최종 릴리즈 정보:")
+                  # 'ensure_ascii=False'로 한글이 깨지지 않게 출력
+                  print(json.dumps(new_release, indent=2, ensure_ascii=False))
+                  print("="*50 + "\n")
                   
                   # CHANGELOG.json 업데이트
                   try:
@@ -458,8 +465,8 @@ jobs:
                   for release in data.get('releases', []):
                       f.write(f"## [{release.get('version', 'Unknown')}] - {release.get('date', 'Unknown')}\n\n")
                       
-                      # AI가 생성한 모든 카테고리를 그대로 출력
-                      for category_key, items in release['parsed_changes'].items():
+                      # AI가 생성한 모든 카테고리를 그대로 출력 (오류 방지를 위해 .get 사용)
+                      for category_key, items in release.get('parsed_changes', {}).items():
                           if items:
                               # 카테고리 키를 제목으로 변환 (언더스코어를 공백으로, 첫 글자 대문자)
                               title = category_key.replace('_', ' ').title()
