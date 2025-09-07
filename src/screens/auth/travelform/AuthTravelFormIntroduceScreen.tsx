@@ -2,17 +2,13 @@ import React, { useMemo } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
   Alert,
 } from 'react-native';
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ProgressStepBar from '@/components/auth/ProgressStepBar';
 import { useAttachStep } from '@/components/providers/SignupProgressProvider';
 import { useFormContext, Controller } from 'react-hook-form';
@@ -20,7 +16,7 @@ import { colors } from '@/constants/colors';
 import CustomButton from '@/components/common/CustomButton';
 import useAuth from '@/hooks/queries/useAuth';
 import { transformSignupData, validateSignupData } from '@/utils/signupUtils';
-import { useNavigation } from '@react-navigation/native';
+import Toast from 'react-native-toast-message';
 
 type FormValues = {
   email: string;
@@ -32,14 +28,21 @@ type FormValues = {
   gender: string;
   phoneNumber: string;
   authCode: string;
-  surveys: { answer: Array<{ section: string; optionId: string }> };
+  surveys: {
+    energyLevel: string;
+    travelPurpose: string;
+    travelPace: string;
+    communicationStyle: string;
+    recordingPreference: string;
+    companionStyle: string;
+    spendingPattern: string;
+  };
   introduce: string;
 };
 
 export default function AuthTravelFormIntroduceScreen() {
   useAttachStep(2);
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
   const { control, watch, getValues } = useFormContext<FormValues>();
   const { signupMutation } = useAuth();
 
@@ -51,29 +54,6 @@ export default function AuthTravelFormIntroduceScreen() {
   );
   const canSubmit = lineCount >= 3;
 
-  const buildSignupBody = (v: FormValues) => {
-    return {
-      account: {
-        email: v.email,
-        password: v.password,
-      },
-      profile: {
-        nickname: v.nickname,
-        name: v.name,
-        birth: v.birth,
-        gender: v.gender,
-        phoneNumber: v.phoneNumber,
-      },
-      verification: {
-        authCode: v.authCode,
-      },
-      travelSurvey: {
-        answers: v.surveys?.answer ?? [],
-        introduce: v.introduce?.trim() || null,
-      },
-    };
-  };
-
   const handleSignup = async (formData: FormValues) => {
     try {
       // 폼 데이터 검증
@@ -83,44 +63,36 @@ export default function AuthTravelFormIntroduceScreen() {
         return;
       }
 
-      // API 요청 형식으로 변환
       const signupData = transformSignupData(formData);
 
-      console.log('회원가입 데이터:', signupData);
+      console.log('회원가입 데이터:', JSON.stringify(signupData, null, 2));
 
-      // 회원가입 API 호출
       await signupMutation.mutateAsync(signupData);
 
-      Alert.alert('회원가입 완료', '회원가입이 완료되었습니다!', [
-        {
-          text: '확인',
-          onPress: () => {
-            // 메인 화면으로 이동 (자동 로그인 완료)
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'MainTab' as never }],
-            });
-          },
-        },
-      ]);
+      Toast.show({
+        type: 'success',
+        text1: '회원가입이 완료되었습니다.',
+        position: 'top',
+        visibilityTime: 2500,
+      });
     } catch (error) {
       console.error('회원가입 실패:', error);
-      Alert.alert(
-        '회원가입 실패',
-        '회원가입 중 오류가 발생했습니다. 다시 시도해주세요.',
-      );
+      Toast.show({
+        type: 'error',
+        text1: '회원가입에 실패했습니다.',
+        position: 'top',
+        visibilityTime: 2500,
+      });
     }
   };
 
   const onSkip = () => {
-    //자기소개서 스킵 && api 송신 후 정보 갱신
     const all = getValues();
     const formDataWithEmptyIntroduce = { ...all, introduce: '' };
     handleSignup(formDataWithEmptyIntroduce);
   };
 
   const onComplete = () => {
-    //자기소개서 작성 완료 && api 송신 후 정보 갱신
     const all = getValues();
     handleSignup(all);
   };

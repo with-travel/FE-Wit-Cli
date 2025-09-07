@@ -39,7 +39,7 @@ const postSignup = async (body: RequestSignup): Promise<ResponseSignup> => {
 };
 
 const getUserInfo = async (): Promise<ResponseGetUserInfo> => {
-  const response = await axiosInstance.get('/auth/user-info');
+  const response = await axiosInstance.get('/api/v1/auth/user-info');
   return response.data;
 };
 

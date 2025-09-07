@@ -6,14 +6,10 @@ import { TravelFormStackParamList } from '@/navigations/stack/AuthStackNavigator
 import { StackScreenProps } from '@react-navigation/stack';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Controller, useFormContext } from 'react-hook-form';
 import { TRAVEL_STYLE_QUESTIONS } from '@/constants/travelForm';
 import OptionList from '@/components/auth/OptionList';
-import { colors } from '@/constants/colors';
 
 type AuthTravelFormCheckScreenProps = StackScreenProps<
   TravelFormStackParamList,
@@ -45,50 +41,39 @@ function AuthTravelFormCheckScreen({
           <Text style={styles.title}>여행 스타일을 알려주세요</Text>
         </View>
 
-        <Controller
-          name="surveys.answer"
-          control={control}
-          rules={{
-            validate: value =>
-              value.length === TRAVEL_STYLE_QUESTIONS.length ||
-              '모든 항목을 선택해주세요.',
-          }}
-          render={({ field: { onChange, value: selectedAnswers } }) => (
-            <>
-              {TRAVEL_STYLE_QUESTIONS.map(question => {
-                const selectedOptionForThisQuestion = question.options.find(
-                  opt => selectedAnswers.includes(opt.id),
-                );
+        {TRAVEL_STYLE_QUESTIONS.map(question => (
+          <Controller
+            key={question.id}
+            name={`surveys.${question.id}` as any}
+            control={control}
+            defaultValue=""
+            rules={{
+              validate: value =>
+                (value && value.length > 0) || '모든 항목을 선택해주세요.',
+            }}
+            render={({ field: { onChange, value: selectedValue } }) => {
+              const selectedOption = question.options.find(
+                opt => opt.value === selectedValue,
+              );
 
-                const handleSelectionChange = (
-                  newlySelectedId: string | null,
-                ) => {
-                  const otherAnswers = selectedAnswers.filter(
-                    (ans: string) =>
-                      !question.options.some(opt => opt.id === ans),
-                  );
+              const handleSelectionChange = (
+                newlySelectedValue: string | null,
+              ) => {
+                onChange(newlySelectedValue || '');
+              };
 
-                  const newAnswers = newlySelectedId
-                    ? [...otherAnswers, newlySelectedId]
-                    : otherAnswers;
-
-                  onChange(newAnswers);
-                };
-
-                return (
-                  <OptionList
-                    key={question.id}
-                    emoji={question.emoji}
-                    title={question.title}
-                    options={question.options}
-                    selectedId={selectedOptionForThisQuestion?.id}
-                    onChange={handleSelectionChange}
-                  />
-                );
-              })}
-            </>
-          )}
-        />
+              return (
+                <OptionList
+                  emoji={question.emoji}
+                  title={question.title}
+                  options={question.options}
+                  selectedId={selectedOption?.value}
+                  onChange={handleSelectionChange}
+                />
+              );
+            }}
+          />
+        ))}
       </ScrollView>
       <View style={[styles.buttonCTA, { bottom: insets.bottom + 32 }]}>
         <CustomButton label="다음" onPress={onSubmit} inValid={!isValid} />
