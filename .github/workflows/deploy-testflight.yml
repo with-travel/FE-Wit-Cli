@@ -580,69 +580,107 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           echo "latest_version=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Update README.md (Flutter 앱 방식)
+      - name: Update README.md from CHANGELOG.md
         run: |
-          echo "📄 README.md 업데이트 중 (Flutter 앱 방식)..."
+          echo "📄 README.md 업데이트 중 (CHANGELOG.md 기반)..."
 
           python3 << 'PYTHON_SCRIPT'
-          import json
+          import re
           import os
+          from datetime import datetime
 
-          def get_category_title(key):
-              """카테고리 키를 한국어 제목으로 변환 (실제 CodeRabbit 형식 기반)"""
-              category_titles = {
-                  'new_features': '신규 기능',
-                  'bug_fixes': '버그 수정', 
-                  'style': '스타일',
-                  'refactor': '리팩토링',
-                  'chores': '작업 정리',
-                  'documentation': '문서',
-                  'tests': '테스트',
-                  'performance': '성능',
-                  'security': '보안',
-                  'general': '일반'
+          def translate_category_to_korean(category_text):
+              """영어 카테고리를 한국어로 변환"""
+              category_translations = {
+                  'New Features': '신규 기능',
+                  'Bug Fixes': '버그 수정',
+                  'Style': '스타일',
+                  'Refactor': '리팩토링',
+                  'Chores': '작업 정리',
+                  'Documentation': '문서',
+                  'Tests': '테스트',
+                  'Performance': '성능',
+                  'Security': '보안',
+                  'General': '일반'
               }
-              return category_titles.get(key.lower(), key.replace('_', ' ').title())
+              return category_translations.get(category_text, category_text)
+
+          def convert_changelog_to_korean(content):
+              """CHANGELOG 내용의 영어 카테고리를 한국어로 변환"""
+              # **카테고리** 형식의 패턴 찾기
+              pattern = r'\*\*([^*]+)\*\*'
+              
+              def replace_category(match):
+                  category = match.group(1)
+                  korean_category = translate_category_to_korean(category)
+                  return f"**{korean_category}**"
+              
+              return re.sub(pattern, replace_category, content)
 
           try:
-              # CHANGELOG.json에서 최신 버전 정보 추출
-              with open('CHANGELOG.json', 'r', encoding='utf-8') as f:
-                  data = json.load(f)
+              # CHANGELOG.md에서 최신 버전 정보 추출
+              with open('CHANGELOG.md', 'r', encoding='utf-8') as f:
+                  changelog_content = f.read()
               
-              if not data.get('releases'):
-                  print("❌ CHANGELOG.json에 릴리즈 정보가 없습니다")
+              # 첫 번째 버전 섹션 찾기 (## [버전] - 날짜 형식)
+              version_pattern = r'## \[([^\]]+)\] - (\d{4}-\d{2}-\d{2})'
+              version_match = re.search(version_pattern, changelog_content)
+              
+              if not version_match:
+                  print("❌ CHANGELOG.md에서 버전 정보를 찾을 수 없습니다")
                   exit(1)
               
-              latest_release = data['releases'][0]
-              version = latest_release.get('version', 'Unknown')
-              date = latest_release.get('date', latest_release.get('timestamp', '')[:10])
-              pr_number = latest_release.get('pr_number', 'N/A')
-              changes = latest_release.get('changes', {})
+              version = version_match.group(1)
+              date = version_match.group(2)
               
               print(f"📋 최신 버전: v{version} ({date})")
               
-              # README.md 생성 (Flutter 앱 방식)
+              # 첫 번째 버전의 변경사항 추출
+              # 첫 번째 ## [버전]부터 다음 ## [버전] 또는 --- 까지
+              first_version_start = version_match.start()
+              
+              # 다음 버전 섹션 찾기
+              next_version_pattern = r'\n## \[[^\]]+\] - \d{4}-\d{2}-\d{2}'
+              next_version_match = re.search(next_version_pattern, changelog_content[first_version_start + 1:])
+              
+              if next_version_match:
+                  first_version_end = first_version_start + 1 + next_version_match.start()
+              else:
+                  # 다음 버전이 없으면 --- 구분자 찾기
+                  separator_match = re.search(r'\n---\n', changelog_content[first_version_start:])
+                  if separator_match:
+                      first_version_end = first_version_start + separator_match.start()
+                  else:
+                      first_version_end = len(changelog_content)
+              
+              # 첫 번째 버전의 내용 추출
+              first_version_content = changelog_content[first_version_start:first_version_end].strip()
+              
+              # 버전 헤더 제거하고 내용만 추출
+              content_lines = first_version_content.split('\n')[2:]  # 첫 두 줄 (헤더와 빈 줄) 제거
+              changes_content = '\n'.join(content_lines).strip()
+              
+              # 영어 카테고리를 한국어로 변환
+              korean_changes_content = convert_changelog_to_korean(changes_content)
+              
+              print(f"📋 추출된 변경사항 길이: {len(changes_content)} 문자")
+              print(f"🔄 카테고리 한국어 변환 완료")
+              
+              # README.md 생성
               with open('README.md', 'w', encoding='utf-8') as f:
                   f.write("# Wit App\n\n")
                   f.write("여행 친구 찾기\n\n")
                   f.write("---\n\n")
                   f.write(f"## 최신 버전: v{version} ({date})\n\n")
-                  f.write(f"**PR:** #{pr_number}\n\n")
                   
                   # 변경사항 섹션
                   f.write("### 변경 사항\n\n")
                   
-                  if changes and any(items for items in changes.values() if items):
-                      for category_key, items in changes.items():
-                          if items and len(items) > 0:
-                              title = get_category_title(category_key)
-                              f.write(f"**{title}**\n")
-                              for item in items:
-                                  f.write(f"- {item}\n")
-                              f.write("\n")
+                  if korean_changes_content and korean_changes_content.strip():
+                      f.write(f"{korean_changes_content}\n\n")
                   else:
                       f.write(f"**일반**\n")
-                      f.write(f"- PR #{pr_number}의 변경사항이 반영되었습니다.\n\n")
+                      f.write(f"- v{version}의 변경사항이 반영되었습니다.\n\n")
                   
                   # 이전 변경사항 링크
                   f.write("### 이전 변경 사항\n\n")
@@ -652,9 +690,39 @@ jobs:
                   f.write("**DOCUMENTATION**\n\n")
                   f.write("- Expo -> Cli로 변경되었습니다.\n\n")
                   f.write("---\n\n")
-                  f.write("<!-- [이전 변경사항 보기](PREVIOUS_CHANGES.md) -->\n")
+                  f.write("<!-- 자동 생성된 README (카테고리 한국어 변환) -->\n")
               
-              print("✅ README.md 업데이트 완료 (실제 CodeRabbit 형식 기반)")
+              print("✅ README.md 업데이트 완료 (CHANGELOG.md 기반, 카테고리 한국어 변환)")
+              
+              # PREVIOUS_CHANGES.md 생성 (맨 위 버전 제외한 나머지 모든 버전)
+              print("📋 PREVIOUS_CHANGES.md 업데이트 중...")
+              
+              # 맨 위 버전을 제외한 나머지 내용 추출
+              if first_version_end < len(changelog_content):
+                  # 맨 위 버전 이후의 모든 내용 (--- 구분자 포함)
+                  remaining_content = changelog_content[first_version_end:].strip()
+                  
+                  # PREVIOUS_CHANGES.md 생성
+                  with open('PREVIOUS_CHANGES.md', 'w', encoding='utf-8') as f:
+                      f.write("# 이전 변경사항\n\n")
+                      
+                      if remaining_content:
+                          # --- 구분자가 있으면 제거하고 시작
+                          if remaining_content.startswith('---'):
+                              remaining_content = remaining_content[3:].strip()
+                          
+                          # 영어 카테고리를 한국어로 변환
+                          korean_remaining_content = convert_changelog_to_korean(remaining_content)
+                          f.write(f"{korean_remaining_content}\n")
+                      else:
+                          f.write("이전 변경사항이 없습니다.\n")
+                  
+                  print("✅ PREVIOUS_CHANGES.md 업데이트 완료 (맨 위 버전 제외, 카테고리 한국어 변환)")
+              else:
+                  print("ℹ️ 이전 버전이 없어 PREVIOUS_CHANGES.md를 빈 파일로 생성합니다.")
+                  with open('PREVIOUS_CHANGES.md', 'w', encoding='utf-8') as f:
+                      f.write("# 이전 변경사항\n\n")
+                      f.write("이전 변경사항이 없습니다.\n")
               
               # GitHub Actions 출력 설정
               with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
@@ -667,74 +735,97 @@ jobs:
               exit(1)
           PYTHON_SCRIPT
 
-      - name: Commit and push README update
+      - name: Commit and push README and PREVIOUS_CHANGES update
         run: |
-          git add README.md
+          git add README.md PREVIOUS_CHANGES.md
           if ! git diff --staged --quiet; then
-            git commit -m "docs: update README with version v${{ steps.version.outputs.latest_version }} [skip ci]"
+            git commit -m "docs: update README and PREVIOUS_CHANGES with version v${{ steps.version.outputs.latest_version }} [skip ci]"
             git push origin main
+            echo "✅ README.md와 PREVIOUS_CHANGES.md 업데이트 완료 및 main 브랜치 푸시 완료"
           else
-            echo "No README changes to commit."
+            echo "No changes to commit."
           fi
 
-      - name: Get PR Number and Auto Merge
+      - name: Auto Merge PR (main -> release)
         run: |
-          echo "🔍 PR 번호 추출 및 자동 병합 준비 중..."
+          echo "🔍 자동 병합 준비 중..."
+          echo "🔍 현재 브랜치: $(git branch --show-current)"
+          echo "🔍 최신 커밋: $(git log -1 --format='%h %s')"
 
-          # workflow_run에서 PR 번호 추출 (개선된 방식)
-          echo "🔍 Workflow run head SHA: ${{ github.event.workflow_run.head_sha }}"
+          # main -> release PR 찾기 (더 간단한 방법)
+          echo "🔍 main -> release PR 검색 중..."
 
-          # 여러 방법으로 PR 번호 찾기
-          PR_NUMBER=$(gh api repos/${{ github.repository }}/pulls \
-            --jq '.[] | select(.head.sha == "${{ github.event.workflow_run.head_sha }}") | .number' \
-            | head -1)
-
-          # 첫 번째 방법이 실패하면 다른 방법 시도
-          if [ -z "$PR_NUMBER" ]; then
-            echo "⚠️ 첫 번째 방법 실패, 다른 방법으로 PR 번호 찾는 중..."
-            PR_NUMBER=$(gh api repos/${{ github.repository }}/pulls \
-              --jq '.[] | select(.state == "open" and .base.ref == "release" and .head.ref == "main") | .number' \
-              | head -1)
-          fi
+          PR_NUMBER=$(gh pr list \
+            --base release \
+            --head main \
+            --state open \
+            --limit 1 \
+            --json number \
+            --jq '.[0].number // empty')
 
           if [ -n "$PR_NUMBER" ]; then
-            echo "📋 PR #$PR_NUMBER 정보 확인 중..."
+            echo "✅ PR #$PR_NUMBER 발견됨 (main -> release)"
             
-            # PR 상세 정보 가져오기
-            PR_INFO=$(gh pr view $PR_NUMBER --json state,mergeable,baseRefName,headRefName)
+            # PR 상세 정보 확인
+            echo "📋 PR 상태 확인 중..."
+            PR_INFO=$(gh pr view $PR_NUMBER --json state,mergeable,title,url)
             PR_STATE=$(echo "$PR_INFO" | jq -r '.state')
             PR_MERGEABLE=$(echo "$PR_INFO" | jq -r '.mergeable')
-            BASE_BRANCH=$(echo "$PR_INFO" | jq -r '.baseRefName')
-            HEAD_BRANCH=$(echo "$PR_INFO" | jq -r '.headRefName')
+            PR_TITLE=$(echo "$PR_INFO" | jq -r '.title')
+            PR_URL=$(echo "$PR_INFO" | jq -r '.url')
             
-            echo "📊 PR 상태:"
+            echo "📊 PR 정보:"
+            echo "  - 번호: #$PR_NUMBER"
+            echo "  - 제목: $PR_TITLE"
             echo "  - 상태: $PR_STATE"
             echo "  - 병합 가능: $PR_MERGEABLE"
-            echo "  - 베이스 브랜치: $BASE_BRANCH"
-            echo "  - 헤드 브랜치: $HEAD_BRANCH"
+            echo "  - URL: $PR_URL"
             
-            # main -> release PR인지 확인
-            if [ "$BASE_BRANCH" = "release" ] && [ "$HEAD_BRANCH" = "main" ]; then
-              echo "✅ main -> release PR 확인됨"
-              
-              if [ "$PR_STATE" = "OPEN" ] && [ "$PR_MERGEABLE" = "MERGEABLE" ]; then
-                echo "🎉 모든 배포 과정이 성공했습니다. PR #$PR_NUMBER을 자동 병합합니다."
+            # 병합 조건 확인
+            if [ "$PR_STATE" = "OPEN" ]; then
+              if [ "$PR_MERGEABLE" = "MERGEABLE" ] || [ "$PR_MERGEABLE" = "null" ]; then
+                echo ""
+                echo "🎉 ========================================"
+                echo "🎉 모든 배포 과정이 성공했습니다!"
+                echo "🎉 PR #$PR_NUMBER을 자동 병합합니다."
+                echo "🎉 ========================================"
                 
-                # 병합 실행
-                gh pr merge $PR_NUMBER --squash --admin --delete-branch
+                # 병합 실행 (squash merge 사용)
+                echo "🔄 병합 실행 중..."
+                gh pr merge $PR_NUMBER \
+                  --squash \
+                  --admin \
+                  --delete-branch \
+                  --subject "🚀 Deploy v${{ steps.version.outputs.latest_version }} to TestFlight"
                 
+                echo ""
+                echo "✅ ========================================"
                 echo "✅ PR #$PR_NUMBER 병합 완료!"
-                echo "🗑️ main 브랜치 삭제 완료 (--delete-branch)"
+                echo "✅ ========================================"
+                echo "🗑️ main 브랜치 자동 삭제 완료"
+                echo "📱 TestFlight 배포 및 PR 병합 모두 성공!"
+                echo "✅ ========================================"
               else
-                echo "⚠️ PR 병합 조건 불만족:"
-                echo "  - 상태가 OPEN이 아니거나 병합 불가능한 상태입니다"
+                echo "⚠️ ========================================"
+                echo "⚠️ PR 병합 불가능"
+                echo "⚠️ ========================================"
+                echo "❌ 병합 상태: $PR_MERGEABLE"
+                echo "💡 수동으로 충돌을 해결한 후 병합해주세요."
+                echo "🔗 PR 링크: $PR_URL"
+                echo "⚠️ ========================================"
               fi
             else
-              echo "ℹ️ main -> release PR이 아닙니다. 자동 병합을 건너뜁니다."
-              echo "  - 현재: $HEAD_BRANCH -> $BASE_BRANCH"
+              echo "⚠️ PR이 OPEN 상태가 아닙니다 (현재: $PR_STATE)"
             fi
           else
-            echo "⚠️ PR 번호를 찾을 수 없어 자동 병합을 건너뜁니다."
+            echo "ℹ️ ========================================"
+            echo "ℹ️ main -> release PR을 찾을 수 없습니다"
+            echo "ℹ️ ========================================"
+            echo "📋 현재 열린 PR 목록:"
+            gh pr list --state open --limit 5 || echo "  - 열린 PR이 없습니다"
+            echo ""
+            echo "💡 main -> release PR이 없으면 자동 병합을 건너뜁니다."
+            echo "ℹ️ ========================================"
           fi
         env:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
@@ -744,12 +835,20 @@ jobs:
           echo "🎉 ========================================"
           echo "🎉 전체 배포 프로세스 완료!"
           echo "🎉 ========================================"
-          echo "✅ 1. 빌드 테스트 완료"
-          echo "✅ 2. CHANGELOG 업데이트 완료"
-          echo "✅ 3. TestFlight 배포 완료"
-          echo "✅ 4. README 업데이트 완료"
-          echo "✅ 5. PR 병합 완료"
+          echo "✅ 1. iOS 아카이브 빌드 완료"
+          echo "✅ 2. TestFlight 업로드 완료"
+          echo "✅ 3. README.md 업데이트 완료 (CHANGELOG.md 기반, 카테고리 한국어 변환)"
+          echo "✅ 4. PREVIOUS_CHANGES.md 업데이트 완료 (맨 위 버전 제외)"
+          echo "✅ 5. main 브랜치 푸시 완료"
+          echo "✅ 6. PR 자동 병합 시도 완료"
           echo ""
-          echo "📱 앱이 TestFlight에서 처리 중입니다."
-          echo "📋 내부 테스터에게 곧 알림이 발송됩니다."
+          echo "📱 배포된 버전: v${{ steps.version.outputs.latest_version }}"
+          echo "📅 배포 완료 시간: $(date)"
+          echo ""
+          echo "📋 다음 단계:"
+          echo "  1. TestFlight에서 빌드 처리 완료 대기 (보통 5-10분)"
+          echo "  2. 내부 테스터에게 자동 알림 발송"
+          echo "  3. 테스트 진행 후 App Store 출시 준비"
+          echo ""
+          echo "🔗 TestFlight: https://appstoreconnect.apple.com"
           echo "🎉 ========================================"
