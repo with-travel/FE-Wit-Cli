@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import OptionChip from './OptionChip';
 
-export type OptionItem = { id: string; label: string };
+export type OptionItem = { id?: string; value?: string; label: string };
 
 type Props = {
   emoji?: string; // "⚡️" 처럼 표시용
@@ -35,8 +35,9 @@ export default function OptionList({
     if (item.label === '') {
       return <View style={styles.col} />;
     }
-    const selected = item.id === selectedId;
-    const onPress = () => onChange(selected ? null : item.id);
+    const itemId = item.value || item.id;
+    const selected = itemId === selectedId;
+    const onPress = () => onChange(selected ? null : itemId || null);
     return (
       <View style={styles.col}>
         <OptionChip label={item.label} selected={selected} onPress={onPress} />
@@ -53,7 +54,7 @@ export default function OptionList({
 
       <FlatList
         data={data}
-        keyExtractor={it => it.id}
+        keyExtractor={it => it.value || it.id || it.label}
         renderItem={renderItem}
         numColumns={2}
         scrollEnabled={false}
