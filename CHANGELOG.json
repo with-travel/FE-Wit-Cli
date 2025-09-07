@@ -1,6 +1,13 @@
 {
   "releases": [
     {
+      "version": "1.0.59",
+      "date": "2025-09-07",
+      "pr_number": 117,
+      "raw_summary": "\"body_html\": \"\\nSummary by CodeRabbit\\n\\n유지보수\\n\\niOS 앱 구성에 비면제 암호화 미사용 선언을 추가해 플랫폼 규정 준수 상태를 명확히 했습니다.\\n배포 프로세스의 일관성과 예측 가능성을 향상했습니다.\\n사용자 기능, 성능, UI에는 변화가 없으며, 앱 동작과 보안 정책은 기존과 동일합니다.\\n\\n\\n\\n\",\n  \"active_lock_reason\": null,\n  \"merged\": false,\n  \"mergeable\": true,\n  \"rebaseable\": true,\n  \"mergeable_state\": \"clean\",\n  \"merged_by\": null,\n  \"comments\": 2,\n  \"review_comments\": 0,\n  \"maintainer_can_modify\": false,\n  \"commits\": 1,\n  \"additions\": 2,\n  \"deletions\": 0,\n  \"changed_files\": 1\n}",
+      "parsed_changes": {}
+    },
+    {
       "version": "1.0.58",
       "date": "2025-09-07",
       "pr_number": 116,
@@ -579,9 +586,9 @@
     }
   ],
   "metadata": {
-    "lastUpdated": "2025-09-07T19:17:42Z",
-    "currentVersion": "1.0.58",
+    "lastUpdated": "2025-09-07T20:02:36Z",
+    "currentVersion": "1.0.59",
     "projectType": "react-native",
-    "totalReleases": 60
+    "totalReleases": 61
   }
 }
