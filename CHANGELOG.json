@@ -5,7 +5,13 @@
       "date": "2025-09-07",
       "pr_number": 117,
       "raw_summary": "\"body_html\": \"\\nSummary by CodeRabbit\\n\\n유지보수\\n\\niOS 앱 구성에 비면제 암호화 미사용 선언을 추가해 플랫폼 규정 준수 상태를 명확히 했습니다.\\n배포 프로세스의 일관성과 예측 가능성을 향상했습니다.\\n사용자 기능, 성능, UI에는 변화가 없으며, 앱 동작과 보안 정책은 기존과 동일합니다.\\n\\n\\n\\n\",\n  \"active_lock_reason\": null,\n  \"merged\": false,\n  \"mergeable\": true,\n  \"rebaseable\": true,\n  \"mergeable_state\": \"clean\",\n  \"merged_by\": null,\n  \"comments\": 2,\n  \"review_comments\": 0,\n  \"maintainer_can_modify\": false,\n  \"commits\": 1,\n  \"additions\": 2,\n  \"deletions\": 0,\n  \"changed_files\": 1\n}",
-      "parsed_changes": {}
+      "parsed_changes": {
+        "유지보수": [
+          "iOS 앱 구성에 비면제 암호화 미사용 선언을 추가해 플랫폼 규정 준수 상태를 명확히 했습니다.",
+          "배포 프로세스의 일관성과 예측 가능성을 향상했습니다.",
+          "사용자 기능, 성능, UI에는 변화가 없으며, 앱 동작과 보안 정책은 기존과 동일합니다."
+        ]
+      }
     },
     {
       "version": "1.0.58",
@@ -25,9 +31,7 @@
         "documentation": [
           "CHANGELOG 구조 및 포맷 재정비, README에 최신 릴리스 반영."
         ],
-        "chores": [
-          "앱·패키지 버전 1.0.57 → 1.0.58으로 업데이트."
-        ]
+        "chores": ["앱·패키지 버전 1.0.57 → 1.0.58으로 업데이트."]
       }
     },
     {
@@ -43,9 +47,7 @@
       "pr_number": 111,
       "raw_summary": "\"body_html\": \"\\nSummary by CodeRabbit\\n\\n\\nNew Features\\n\\n휴대폰 인증을 2단계(번호 입력 → 인증 코드)로 개선하고 검증/UI 흐름 및 버튼 활성 조건을 업데이트.\\n여행 소개 화면의 회원가입 처리를 중앙화하여 제출/건너뛰기 흐름, 진행 상태 표시 및 성공/오류 알림을 개선.\\n\\n\\n\\nDocumentation\\n\\nCHANGELOG, README, PREVIOUS_CHANGES에 v1.0.53 항목 추가 및 문서 갱신.\\nGitHub 워크플로우 문서 및 자동 CHANGELOG 관리 워크플로우(신규) 문서화; 일부 구 워크플로우는 비활성화/수동화로 표기.\\n\\n\\n\\nChore\\n\\n앱 버전(버전명/코드) 및 package.json 버전 업데이트.\\n\\n\\n\\n\",\n  \"active_lock_reason\": null,\n  \"merged\": false,\n  \"mergeable\": true,\n  \"rebaseable\": true,\n  \"mergeable_state\": \"clean\",\n  \"merged_by\": null,\n  \"comments\": 2,\n  \"review_comments\": 0,\n  \"maintainer_can_modify\": false,\n  \"commits\": 1,\n  \"additions\": 1,\n  \"deletions\": 0,\n  \"changed_files\": 1\n}",
       "parsed_changes": {
-        "general": [
-          "PR #111의 변경사항이 반영되었습니다."
-        ]
+        "general": ["PR #111의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -179,9 +181,7 @@
       "timestamp": "2025-09-03T13:43:01Z",
       "pr_number": "92",
       "changes": {
-        "General": [
-          "PR #92의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #92의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -189,9 +189,7 @@
       "timestamp": "2025-09-03T12:40:37Z",
       "pr_number": "91",
       "changes": {
-        "General": [
-          "PR #91의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #91의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -199,9 +197,7 @@
       "timestamp": "2025-09-03T11:49:29Z",
       "pr_number": "90",
       "changes": {
-        "General": [
-          "PR #90의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #90의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -209,9 +205,7 @@
       "timestamp": "2025-09-03T08:44:35Z",
       "pr_number": "89",
       "changes": {
-        "General": [
-          "PR #89의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #89의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -219,9 +213,7 @@
       "timestamp": "2025-09-02T21:41:09Z",
       "pr_number": "88",
       "changes": {
-        "General": [
-          "PR #88의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #88의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -229,9 +221,7 @@
       "timestamp": "2025-09-02T20:54:43Z",
       "pr_number": "86",
       "changes": {
-        "General": [
-          "PR #86의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #86의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -239,9 +229,7 @@
       "timestamp": "2025-09-02T20:37:43Z",
       "pr_number": "86",
       "changes": {
-        "General": [
-          "PR #86의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #86의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -249,9 +237,7 @@
       "timestamp": "2025-09-02T20:22:30Z",
       "pr_number": "86",
       "changes": {
-        "General": [
-          "PR #86의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #86의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -259,9 +245,7 @@
       "timestamp": "2025-09-02T20:00:18Z",
       "pr_number": "85",
       "changes": {
-        "General": [
-          "PR #85의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #85의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -269,9 +253,7 @@
       "timestamp": "2025-09-02T19:44:59Z",
       "pr_number": "85",
       "changes": {
-        "General": [
-          "PR #85의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #85의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -279,9 +261,7 @@
       "timestamp": "2025-09-02T15:33:27Z",
       "pr_number": "84",
       "changes": {
-        "General": [
-          "PR #84의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #84의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -289,9 +269,7 @@
       "timestamp": "2025-09-02T14:58:11Z",
       "pr_number": "83",
       "changes": {
-        "General": [
-          "PR #83의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #83의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -299,9 +277,7 @@
       "timestamp": "2025-09-02T13:02:59Z",
       "pr_number": "82",
       "changes": {
-        "General": [
-          "PR #82의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #82의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -309,9 +285,7 @@
       "timestamp": "2025-09-02T11:26:57Z",
       "pr_number": "81",
       "changes": {
-        "General": [
-          "PR #81의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #81의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -319,9 +293,7 @@
       "timestamp": "2025-09-02T10:40:51Z",
       "pr_number": "80",
       "changes": {
-        "General": [
-          "PR #80의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #80의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -329,9 +301,7 @@
       "timestamp": "2025-09-02T10:10:36Z",
       "pr_number": "79",
       "changes": {
-        "General": [
-          "PR #79의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #79의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -339,9 +309,7 @@
       "timestamp": "2025-09-02T09:36:13Z",
       "pr_number": "78",
       "changes": {
-        "General": [
-          "PR #78의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #78의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -349,9 +317,7 @@
       "timestamp": "2025-09-02T08:14:28Z",
       "pr_number": "77",
       "changes": {
-        "General": [
-          "PR #77의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #77의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -359,9 +325,7 @@
       "timestamp": "2025-09-02T07:50:06Z",
       "pr_number": "76",
       "changes": {
-        "General": [
-          "PR #76의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #76의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -369,9 +333,7 @@
       "timestamp": "2025-09-02T07:13:09Z",
       "pr_number": "74",
       "changes": {
-        "General": [
-          "PR #74의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #74의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -379,9 +341,7 @@
       "timestamp": "2025-09-02T06:20:29Z",
       "pr_number": "71",
       "changes": {
-        "General": [
-          "PR #71의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #71의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -389,9 +349,7 @@
       "timestamp": "2025-09-01T14:18:56Z",
       "pr_number": "68",
       "changes": {
-        "General": [
-          "PR #68의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #68의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -399,9 +357,7 @@
       "timestamp": "2025-09-01T11:33:23Z",
       "pr_number": "66",
       "changes": {
-        "General": [
-          "PR #66의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #66의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -409,9 +365,7 @@
       "timestamp": "2025-09-01T10:43:28Z",
       "pr_number": "65",
       "changes": {
-        "General": [
-          "PR #65의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #65의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -419,9 +373,7 @@
       "timestamp": "2025-09-01T10:28:16Z",
       "pr_number": "65",
       "changes": {
-        "General": [
-          "PR #65의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #65의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -429,9 +381,7 @@
       "timestamp": "2025-09-01T10:01:17Z",
       "pr_number": "63",
       "changes": {
-        "General": [
-          "PR #63의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #63의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -439,9 +389,7 @@
       "timestamp": "2025-09-01T09:44:20Z",
       "pr_number": "63",
       "changes": {
-        "General": [
-          "PR #63의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #63의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -449,9 +397,7 @@
       "timestamp": "2025-09-01T08:14:11Z",
       "pr_number": "61",
       "changes": {
-        "General": [
-          "PR #61의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #61의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -459,9 +405,7 @@
       "timestamp": "2025-09-01T07:30:07Z",
       "pr_number": "58",
       "changes": {
-        "General": [
-          "PR #58의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #58의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -469,9 +413,7 @@
       "timestamp": "2025-09-01T07:13:56Z",
       "pr_number": "58",
       "changes": {
-        "General": [
-          "PR #58의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #58의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -479,9 +421,7 @@
       "timestamp": "2025-08-31T17:45:47Z",
       "pr_number": "55",
       "changes": {
-        "General": [
-          "PR #55의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #55의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -489,9 +429,7 @@
       "timestamp": "2025-08-31T17:28:46Z",
       "pr_number": "55",
       "changes": {
-        "General": [
-          "PR #55의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #55의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -499,9 +437,7 @@
       "timestamp": "2025-08-31T15:54:43Z",
       "pr_number": "51",
       "changes": {
-        "General": [
-          "PR #51의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #51의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -509,9 +445,7 @@
       "timestamp": "2025-08-31T15:09:07Z",
       "pr_number": "48",
       "changes": {
-        "General": [
-          "PR #48의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #48의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -519,9 +453,7 @@
       "timestamp": "2025-08-31T14:53:51Z",
       "pr_number": "48",
       "changes": {
-        "General": [
-          "PR #48의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #48의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -529,9 +461,7 @@
       "timestamp": "2025-08-31T11:38:31Z",
       "pr_number": "45",
       "changes": {
-        "General": [
-          "PR #45의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #45의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -539,9 +469,7 @@
       "timestamp": "2025-08-31T11:38:31Z",
       "pr_number": "45",
       "changes": {
-        "General": [
-          "PR #45의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #45의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -549,9 +477,7 @@
       "timestamp": "2025-08-29T16:16:09Z",
       "pr_number": "41",
       "changes": {
-        "General": [
-          "PR #41의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #41의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -559,9 +485,7 @@
       "timestamp": "2025-08-29T15:59:13Z",
       "pr_number": "41",
       "changes": {
-        "General": [
-          "PR #41의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #41의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -569,9 +493,7 @@
       "timestamp": "2025-08-29T09:55:42Z",
       "pr_number": "26",
       "changes": {
-        "General": [
-          "PR #26의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #26의 변경사항이 반영되었습니다."]
       }
     },
     {
@@ -579,9 +501,7 @@
       "timestamp": "2025-08-29T09:40:33Z",
       "pr_number": "26",
       "changes": {
-        "General": [
-          "PR #26의 변경사항이 반영되었습니다."
-        ]
+        "General": ["PR #26의 변경사항이 반영되었습니다."]
       }
     }
   ],
