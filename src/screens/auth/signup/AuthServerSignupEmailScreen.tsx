@@ -46,9 +46,11 @@ function AuthServerSignupEmailScreen({
       const isAvailable = await duplicateCheckEmail(email);
 
       if (isAvailable) {
+        console.log('', 'isAvailable');
         setEmailCheckStatus('available');
         clearErrors('email');
       } else {
+        console.log('', 'notAvailable');
         setEmailCheckStatus('duplicate');
         setError('email', {
           type: 'manual',
