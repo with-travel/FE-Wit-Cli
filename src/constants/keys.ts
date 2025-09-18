@@ -5,7 +5,8 @@ const storageKeys = {
 
 const queryKeys = {
   AUTH: 'auth',
-  GET_USER_INFO: 'getUserInfo',
+  GET_PROFILE: 'getProfile',
+  GET_ACCESS_TOKEN: 'getAccessToken',
 } as const;
 
 export { storageKeys, queryKeys };
