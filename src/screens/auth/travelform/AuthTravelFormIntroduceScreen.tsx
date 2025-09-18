@@ -17,6 +17,8 @@ import CustomButton from '@/components/common/CustomButton';
 import useAuth from '@/hooks/queries/useAuth';
 import { transformSignupData, validateSignupData } from '@/utils/signupUtils';
 import Toast from 'react-native-toast-message';
+import { errorMessages } from '@/constants';
+import { useNavigation } from '@react-navigation/native';
 
 type FormValues = {
   email: string;
@@ -41,10 +43,11 @@ type FormValues = {
 };
 
 export default function AuthTravelFormIntroduceScreen() {
+  const navigation = useNavigation();
   useAttachStep(2);
   const insets = useSafeAreaInsets();
   const { control, watch, getValues } = useFormContext<FormValues>();
-  const { signupMutation } = useAuth();
+  const { signupMutation, emailLoginMutation } = useAuth();
 
   const introduce = watch('introduce') ?? '';
 
@@ -54,36 +57,72 @@ export default function AuthTravelFormIntroduceScreen() {
   );
   const canSubmit = lineCount >= 3;
 
-  const handleSignup = async (formData: FormValues) => {
-    try {
-      // 폼 데이터 검증
-      const validationErrors = validateSignupData(formData);
-      if (validationErrors.length > 0) {
-        Alert.alert('입력 오류', validationErrors.join('\n'));
-        return;
-      }
+  // const handleSignup = async (formData: FormValues) => {
+  //   try {
+  //     // 폼 데이터 검증
+  //     const validationErrors = validateSignupData(formData);
+  //     if (validationErrors.length > 0) {
+  //       Alert.alert('입력 오류', validationErrors.join('\n'));
+  //       return;
+  //     }
 
-      const signupData = transformSignupData(formData);
+  //     const signupData = transformSignupData(formData);
 
-      console.log('회원가입 데이터:', JSON.stringify(signupData, null, 2));
+  //     console.log('회원가입 데이터:', JSON.stringify(signupData, null, 2));
 
-      await signupMutation.mutateAsync(signupData);
+  //     await signupMutation.mutateAsync(signupData);
 
-      Toast.show({
-        type: 'success',
-        text1: '회원가입이 완료되었습니다.',
-        position: 'top',
-        visibilityTime: 2500,
-      });
-    } catch (error) {
-      console.error('회원가입 실패:', error);
-      Toast.show({
-        type: 'error',
-        text1: '회원가입에 실패했습니다.',
-        position: 'top',
-        visibilityTime: 2500,
-      });
-    }
+  //     Toast.show({
+  //       type: 'success',
+  //       text1: '회원가입이 완료되었습니다.',
+  //       position: 'top',
+  //       visibilityTime: 2500,
+  //     });
+  //   } catch (error) {
+  //     console.error('회원가입 실패:', error);
+  //     Toast.show({
+  //       type: 'error',
+  //       text1: '회원가입에 실패했습니다.',
+  //       position: 'top',
+  //       visibilityTime: 2500,
+  //     });
+  //   }
+  // };
+  const handleSignup = (formData: FormValues) => {
+    const signupData = transformSignupData(formData);
+    const email = signupData.extraInfo.email;
+    const password = signupData.extraInfo.password;
+    console.log('signupData', signupData);
+    signupMutation.mutate(signupData, {
+      onSuccess: () => {
+        Toast.show({
+          type: 'success',
+          text1: '회원가입이 완료되었습니다.',
+          position: 'top',
+          visibilityTime: 2500,
+        });
+        emailLoginMutation.mutate(
+          { email, password },
+          {
+            onSuccess: () => {
+              Toast.show({
+                type: 'success',
+                text1: '로그인이 완료되었습니다.',
+                position: 'top',
+                visibilityTime: 2500,
+              });
+            },
+          },
+        );
+      },
+      onError: error =>
+        Toast.show({
+          type: 'error',
+          text1: error.response?.data.message || errorMessages.UNEXPECT_ERROR,
+          position: 'bottom',
+          visibilityTime: 2500,
+        }),
+    });
   };
 
   const onSkip = () => {
