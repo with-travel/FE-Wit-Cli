@@ -4,13 +4,14 @@ type ResponseLogin = {
   infoChecked: boolean;
 };
 
-type ResponseSignup = {
+type ResponseToken = {
   accessToken: string;
   refreshToken: string;
-  infoChecked: boolean;
 };
 
-type ResponseGetUserInfo = {
+type ResponseSignup = {};
+
+type ResponseProfile = {
   id: number;
   email: string;
   nickname: string;
@@ -19,4 +20,4 @@ type ResponseGetUserInfo = {
   infoChecked: boolean;
 };
 
-export type { ResponseLogin, ResponseSignup, ResponseGetUserInfo };
+export type { ResponseLogin, ResponseSignup, ResponseProfile, ResponseToken };
