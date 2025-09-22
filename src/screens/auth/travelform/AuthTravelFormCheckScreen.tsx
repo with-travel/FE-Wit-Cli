@@ -44,14 +44,18 @@ function AuthTravelFormCheckScreen({
         {TRAVEL_STYLE_QUESTIONS.map(question => (
           <Controller
             key={question.id}
-            name={`surveys.${question.id}` as any}
+            name={`survey.${question.id}` as any}
             control={control}
-            defaultValue=""
+            defaultValue={[]}
             rules={{
               validate: value =>
-                (value && value.length > 0) || '모든 항목을 선택해주세요.',
+                (Array.isArray(value) && value.length > 0) ||
+                '모든 항목을 선택해주세요.',
             }}
-            render={({ field: { onChange, value: selectedValue } }) => {
+            render={({ field: { onChange, value: selectedValues } }) => {
+              const selectedValue = Array.isArray(selectedValues)
+                ? selectedValues[0]
+                : selectedValues;
               const selectedOption = question.options.find(
                 opt => opt.value === selectedValue,
               );
@@ -59,7 +63,8 @@ function AuthTravelFormCheckScreen({
               const handleSelectionChange = (
                 newlySelectedValue: string | null,
               ) => {
-                onChange(newlySelectedValue || '');
+                // Survey 타입에 맞게 배열로 저장
+                onChange(newlySelectedValue ? [newlySelectedValue] : []);
               };
 
               return (
