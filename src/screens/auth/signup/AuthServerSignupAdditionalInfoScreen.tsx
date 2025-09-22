@@ -86,7 +86,7 @@ function AuthServerSignupAdditionalInfoScreen({
               value={value}
             />
           )}
-          name="nickname"
+          name="extraInfo.nickname"
           rules={{ required: true }}
         />
         <Controller
@@ -99,12 +99,12 @@ function AuthServerSignupAdditionalInfoScreen({
               value={value}
             />
           )}
-          name="name"
+          name="extraInfo.name"
           rules={{ required: true }}
         />
         <Controller
           control={control}
-          name="birthDate"
+          name="extraInfo.birthdate"
           render={({ field: { onChange, value } }) => (
             <View style={{ marginBottom: 24 }}>
               <Text style={styles.sectionTitle}>생년월일</Text>
@@ -216,9 +216,9 @@ function AuthServerSignupAdditionalInfoScreen({
                 </View>
               </Modal>
 
-              {/* {error.birthDate && (
+              {/* {error.birthdate && (
                 <Text style={styles.error}>
-                  {error.birthDate.message as string}
+                  {error.birthdate.message as string}
                 </Text>
               )} */}
             </View>
@@ -226,7 +226,7 @@ function AuthServerSignupAdditionalInfoScreen({
         />
         <Controller
           control={control}
-          name="gender"
+          name="extraInfo.gender"
           render={({ field: { onChange, value } }) => (
             <View style={{ marginBottom: 24 }}>
               <Text style={styles.sectionTitle}>성별</Text>
@@ -234,13 +234,13 @@ function AuthServerSignupAdditionalInfoScreen({
                 <TouchableOpacity
                   style={[
                     styles.genderButton,
-                    value === '남자' && styles.genderButtonSelected,
+                    value === 'MALE' && styles.genderButtonSelected,
                   ]}
-                  onPress={() => onChange('남자')}
+                  onPress={() => onChange('MALE')}
                 >
                   <Text
                     style={
-                      value === '남자' ? styles.selectedText : styles.normalText
+                      value === 'MALE' ? styles.selectedText : styles.normalText
                     }
                   >
                     남자
@@ -249,13 +249,15 @@ function AuthServerSignupAdditionalInfoScreen({
                 <TouchableOpacity
                   style={[
                     styles.genderButton,
-                    value === '여자' && styles.genderButtonSelected,
+                    value === 'FEMALE' && styles.genderButtonSelected,
                   ]}
-                  onPress={() => onChange('여자')}
+                  onPress={() => onChange('FEMALE')}
                 >
                   <Text
                     style={
-                      value === '여자' ? styles.selectedText : styles.normalText
+                      value === 'FEMALE'
+                        ? styles.selectedText
+                        : styles.normalText
                     }
                   >
                     여자
