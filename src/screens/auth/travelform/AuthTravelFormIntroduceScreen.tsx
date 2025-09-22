@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -6,7 +6,6 @@ import {
   Text,
   TextInput,
   View,
-  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ProgressStepBar from '@/components/auth/ProgressStepBar';
@@ -15,38 +14,18 @@ import { useFormContext, Controller } from 'react-hook-form';
 import { colors } from '@/constants/colors';
 import CustomButton from '@/components/common/CustomButton';
 import useAuth from '@/hooks/queries/useAuth';
-import { transformSignupData, validateSignupData } from '@/utils/signupUtils';
+import { transformSignupData } from '@/utils/signupUtils';
 import Toast from 'react-native-toast-message';
-
-type FormValues = {
-  email: string;
-  password: string;
-  passwordConfirm: string;
-  nickname: string;
-  name: string;
-  birth: string;
-  gender: string;
-  phoneNumber: string;
-  authCode: string;
-  surveys: {
-    energyLevel: string;
-    travelPurpose: string;
-    travelPace: string;
-    communicationStyle: string;
-    recordingPreference: string;
-    companionStyle: string;
-    spendingPattern: string;
-  };
-  introduce: string;
-};
+import { errorMessages } from '@/constants';
+import { AuthFormValues } from '@/types/form/auth';
 
 export default function AuthTravelFormIntroduceScreen() {
   useAttachStep(2);
   const insets = useSafeAreaInsets();
-  const { control, watch, getValues } = useFormContext<FormValues>();
-  const { signupMutation } = useAuth();
+  const { control, watch, getValues } = useFormContext<AuthFormValues>();
+  const { signupMutation, emailLoginMutation } = useAuth();
 
-  const introduce = watch('introduce') ?? '';
+  const introduce = watch('extraInfo.introduction') ?? '';
 
   const lineCount = useMemo(
     () => introduce.split(/\r?\n/).filter(l => l.trim().length > 0).length,
@@ -54,41 +33,99 @@ export default function AuthTravelFormIntroduceScreen() {
   );
   const canSubmit = lineCount >= 3;
 
-  const handleSignup = async (formData: FormValues) => {
-    try {
-      // 폼 데이터 검증
-      const validationErrors = validateSignupData(formData);
-      if (validationErrors.length > 0) {
-        Alert.alert('입력 오류', validationErrors.join('\n'));
-        return;
-      }
+  useEffect(() => {
+    const all = getValues();
+    const signupData = transformSignupData(all);
+    console.log(
+      '🚀 API로 전송되는 데이터:',
+      JSON.stringify(signupData, null, 2),
+    );
+    console.log('📋 폼에서 제외되는 검증용 필드들:');
+  }, [getValues]);
 
-      const signupData = transformSignupData(formData);
+  const handleSignup = (formData: AuthFormValues) => {
+    const signupData = transformSignupData(formData);
+    const email = formData.extraInfo.email;
+    const password = formData.extraInfo.password;
 
-      console.log('회원가입 데이터:', JSON.stringify(signupData, null, 2));
+    console.log(
+      '🚀 API로 전송되는 데이터:',
+      JSON.stringify(signupData, null, 2),
+    );
+    console.log('📋 폼에서 제외되는 검증용 필드들:');
+    console.log('- passwordConfirm:', formData.passwordConfirm || '(없음)');
+    console.log('- authCode:', formData.authCode || '(없음)');
 
-      await signupMutation.mutateAsync(signupData);
+    signupMutation.mutate(signupData, {
+      onSuccess: () => {
+        console.log('🚀 회원가입 성공');
+        Toast.show({
+          type: 'success',
+          text1: '회원가입이 완료되었습니다.',
+          position: 'top',
+          visibilityTime: 2500,
+        });
 
-      Toast.show({
-        type: 'success',
-        text1: '회원가입이 완료되었습니다.',
-        position: 'top',
-        visibilityTime: 2500,
-      });
-    } catch (error) {
-      console.error('회원가입 실패:', error);
-      Toast.show({
-        type: 'error',
-        text1: '회원가입에 실패했습니다.',
-        position: 'top',
-        visibilityTime: 2500,
-      });
-    }
+        // 회원가입 성공 후 잠시 대기 후 로그인 시도
+        setTimeout(() => {
+          console.log('🔄 자동 로그인 시도 중...', { email, password: '***' });
+          emailLoginMutation.mutate(
+            { email, password },
+            {
+              onSuccess: loginData => {
+                console.log('🚀 로그인 성공', {
+                  accessToken: loginData.accessToken ? '존재함' : '없음',
+                  refreshToken: loginData.refreshToken ? '존재함' : '없음',
+                });
+                Toast.show({
+                  type: 'success',
+                  text1: '로그인이 완료되었습니다.',
+                  position: 'top',
+                  visibilityTime: 2500,
+                });
+              },
+              onError: loginError => {
+                console.log('❌ 로그인 실패:', {
+                  message: loginError.message,
+                  status: loginError.response?.status,
+                  data: loginError.response?.data,
+                });
+                Toast.show({
+                  type: 'error',
+                  text1: '자동 로그인에 실패했습니다. 수동으로 로그인해주세요.',
+                  position: 'bottom',
+                  visibilityTime: 3000,
+                });
+              },
+            },
+          );
+        }, 1000); // 1초 대기
+      },
+      onError: error => {
+        console.log('❌ 회원가입 실패:', {
+          message: error.message,
+          status: error.response?.status,
+          data: error.response?.data,
+        });
+        Toast.show({
+          type: 'error',
+          text1: error.response?.data?.message || errorMessages.UNEXPECT_ERROR,
+          position: 'bottom',
+          visibilityTime: 2500,
+        });
+      },
+    });
   };
 
   const onSkip = () => {
     const all = getValues();
-    const formDataWithEmptyIntroduce = { ...all, introduce: '' };
+    const formDataWithEmptyIntroduce = {
+      ...all,
+      extraInfo: {
+        ...all.extraInfo,
+        introduction: '',
+      },
+    };
     handleSignup(formDataWithEmptyIntroduce);
   };
 
@@ -121,7 +158,7 @@ export default function AuthTravelFormIntroduceScreen() {
           <View style={styles.inputCard}>
             <Controller
               control={control}
-              name="introduce"
+              name="extraInfo.introduction"
               defaultValue=""
               render={({ field: { value, onChange, onBlur } }) => (
                 <TextInput

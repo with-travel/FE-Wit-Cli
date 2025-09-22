@@ -20,6 +20,7 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
+import Toast from 'react-native-toast-message';
 
 type AuthServerSignupPhoneAuthorizationScreenProps = StackScreenProps<
   SignupFlowStackParamList,
@@ -40,7 +41,7 @@ function AuthServerSignupPhoneAuthorizationScreen({
     formState: { isValid },
   } = useFormContext();
 
-  const phoneNumber = watch('phoneNumber');
+  const phoneNumber = watch('extraInfo.phone');
   const authCode = watch('authCode');
 
   const onSubmit = () => {
@@ -61,8 +62,12 @@ function AuthServerSignupPhoneAuthorizationScreen({
     // const success = await verifyAuthCodeAPI(phoneNumber, authCode);
     // if (success) {
     setIsVerified(true);
-    // TODO: "인증되었습니다" 모달 띄우기
-    // }
+    Toast.show({
+      type: 'success',
+      text1: '인증되었습니다.',
+      position: 'bottom',
+      visibilityTime: 1800,
+    });
   };
 
   const formatPhoneNumber = (text: string) => {
@@ -84,7 +89,7 @@ function AuthServerSignupPhoneAuthorizationScreen({
         <View style={{ marginBottom: 24 }}>
           <Controller
             control={control}
-            name="phoneNumber"
+            name="extraInfo.phone"
             render={({
               field: { onChange, onBlur, value },
               fieldState: { error },

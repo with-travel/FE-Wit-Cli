@@ -1,16 +1,25 @@
-import React from 'react';
-import { Text, View } from 'react-native';
-import Config from 'react-native-config';
+import React, { useEffect } from 'react';
 import AuthStackNavigator from '../stack/AuthStackNavigator';
-import MainTabNavigator from '../tab/MainTabNavigator';
 import useAuth from '@/hooks/queries/useAuth';
+// import SplashScreen from 'react-native-splash-screen';
+import RetryErrorBoundary from '@/components/common/RetryErrorBoundary';
+import MainTabNavigator from '@/navigations/tab/MainTabNavigator';
 
 function RootNavigator() {
-  console.log('Config.SERVER_BASEURL', Config.SERVER_BASEURL);
-  const { auth } = useAuth();
-  // return <AuthStackNavigator />;
-  // return <MainTabNavigator />;
-  return <>{auth.id ? <MainTabNavigator /> : <AuthStackNavigator />}</>;
+  // const {isLogin, isLoginLoading} = useAuth();
+  const { isLogin } = useAuth();
+
+  // useEffect(() => {
+  //   if (!isLoginLoading) {
+  //     SplashScreen.hide();
+  //   }
+  // }, [isLoginLoading]);
+
+  return (
+    <RetryErrorBoundary>
+      {isLogin ? <MainTabNavigator /> : <AuthStackNavigator />}
+    </RetryErrorBoundary>
+  );
 }
 
 export default RootNavigator;

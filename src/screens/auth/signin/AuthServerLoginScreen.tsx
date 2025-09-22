@@ -9,11 +9,11 @@ import {
 } from 'react-native-safe-area-context';
 
 function AuthServerLoginScreen() {
-  const { loginMutation } = useAuth();
+  const { emailLoginMutation } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const handleLogin = () => {
-    loginMutation.mutate({
+    emailLoginMutation.mutate({
       email: email,
       password: password,
     });
@@ -57,7 +57,10 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     position: 'absolute',
-    bottom: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    left: 0,
+    right: 0,
     paddingHorizontal: 20,
     paddingBottom: 32,
   },
