@@ -11,6 +11,7 @@ import { Controller, useFormContext } from 'react-hook-form';
 import { validateEmail } from '@/utils/validate';
 import { duplicateCheckEmail } from '@/api/auth';
 import { useState } from 'react';
+import Toast from 'react-native-toast-message';
 
 type AuthServerSignupEmailProps = StackScreenProps<
   SignupFlowStackParamList,
@@ -31,7 +32,7 @@ function AuthServerSignupEmailScreen({
     clearErrors,
   } = useFormContext();
 
-  const password = watch('password');
+  const password = watch('extraInfo.password');
   const [emailCheckStatus, setEmailCheckStatus] = useState<
     'unchecked' | 'checking' | 'available' | 'duplicate'
   >('unchecked');
@@ -47,6 +48,12 @@ function AuthServerSignupEmailScreen({
 
       if (isAvailable) {
         console.log('', 'isAvailable');
+        Toast.show({
+          type: 'success',
+          text1: '사용 가능한 이메일입니다.',
+          position: 'top',
+          visibilityTime: 2500,
+        });
         setEmailCheckStatus('available');
         clearErrors('email');
       } else {
@@ -95,7 +102,6 @@ function AuthServerSignupEmailScreen({
               onBlur={onBlur}
               onChangeText={text => {
                 onChange(text);
-                // 이메일이 변경되면 중복 체크 상태 초기화
                 if (emailCheckStatus !== 'unchecked') {
                   setEmailCheckStatus('unchecked');
                   clearErrors('email');
@@ -123,7 +129,7 @@ function AuthServerSignupEmailScreen({
               onCheck={() => checkEmail(value)}
             />
           )}
-          name="email"
+          name="extraInfo.email"
           rules={{
             required: '이메일을 입력해주세요',
             validate: validateEmail,
@@ -145,7 +151,7 @@ function AuthServerSignupEmailScreen({
               value={value}
             />
           )}
-          name="password"
+          name="extraInfo.password"
           rules={{ required: true }}
         />
         <Controller
