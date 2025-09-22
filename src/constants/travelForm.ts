@@ -1,6 +1,6 @@
 const questions = [
   {
-    id: 'energyLevel',
+    id: 'energyLevels', // Survey 타입에 맞춤
     emoji: '⚡️',
     title: '에너지 레벨',
     options: [
@@ -11,7 +11,7 @@ const questions = [
     ],
   },
   {
-    id: 'travelPurpose',
+    id: 'travelGoals', // Survey 타입에 맞춤
     emoji: '🎯',
     title: '여행 목적',
     options: [
@@ -23,7 +23,7 @@ const questions = [
     ],
   },
   {
-    id: 'travelPace',
+    id: 'travelPaces', // Survey 타입에 맞춤
     emoji: '🚀',
     title: '여행 페이스',
     options: [
@@ -34,7 +34,7 @@ const questions = [
     ],
   },
   {
-    id: 'communicationStyle',
+    id: 'commStyles', // Survey 타입에 맞춤
     emoji: '💬',
     title: '소통 스타일',
     options: [
@@ -45,7 +45,7 @@ const questions = [
     ],
   },
   {
-    id: 'recordingPreference',
+    id: 'recordTendencies', // Survey 타입에 맞춤
     emoji: '📸',
     title: '기록 성향',
     options: [
@@ -56,7 +56,7 @@ const questions = [
     ],
   },
   {
-    id: 'companionStyle',
+    id: 'companionStyles', // Survey 타입에 맞춤
     emoji: '🤝',
     title: '동행 스타일',
     options: [
@@ -67,7 +67,7 @@ const questions = [
     ],
   },
   {
-    id: 'spendingPattern',
+    id: 'spendPatterns', // Survey 타입에 맞춤
     emoji: '💰',
     title: '소비 패턴',
     options: [
