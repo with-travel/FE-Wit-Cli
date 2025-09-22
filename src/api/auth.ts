@@ -54,12 +54,21 @@ const getProfile = async (): Promise<ResponseProfile> => {
 const getAccessToken = async (): Promise<ResponseToken> => {
   const refreshToken = await loadToken(storageKeys.REFRESH_TOKEN);
 
-  const { data } = await axiosInstance.get('/auth/refresh', {
+  console.log('🔄 토큰 갱신 시도:', {
+    refreshToken: refreshToken ? '존재함' : '없음',
+    endpoint: '/api/token/refresh',
+  });
+
+  // API 경로를 다른 엔드포인트들과 일치하도록 수정
+  const { data } = await axiosInstance.post('/api/token/refresh', {
+    refreshToken,
     headers: {
       Authorization: `Bearer ${refreshToken}`,
     },
   });
+  //헤더에 넣어야 되지 않나? 왜 requestBody에 넣는거?
 
+  console.log('✅ 토큰 갱신 응답:', JSON.stringify(data, null, 2));
   return data;
 };
 
