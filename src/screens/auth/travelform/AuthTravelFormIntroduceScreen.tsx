@@ -56,6 +56,7 @@ export default function AuthTravelFormIntroduceScreen() {
     console.log('- passwordConfirm:', formData.passwordConfirm || '(없음)');
     console.log('- authCode:', formData.authCode || '(없음)');
 
+    console.log('signupData', signupData);
     signupMutation.mutate(signupData, {
       onSuccess: () => {
         console.log('🚀 회원가입 성공');
@@ -66,7 +67,6 @@ export default function AuthTravelFormIntroduceScreen() {
           visibilityTime: 2500,
         });
 
-        // 회원가입 성공 후 잠시 대기 후 로그인 시도
         setTimeout(() => {
           console.log('🔄 자동 로그인 시도 중...', { email, password: '***' });
           emailLoginMutation.mutate(
