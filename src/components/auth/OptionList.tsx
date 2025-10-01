@@ -1,4 +1,3 @@
-// components/OptionList.tsx
 import React from 'react';
 import {
   View,
@@ -12,11 +11,11 @@ import OptionChip from './OptionChip';
 export type OptionItem = { id?: string; value?: string; label: string };
 
 type Props = {
-  emoji?: string; // "⚡️" 처럼 표시용
-  title: string; // 섹션 타이틀
+  emoji?: string;
+  title: string;
   options: OptionItem[];
   selectedId?: string | null;
-  onChange: (id: string | null) => void; // 같은 칩을 다시 누르면 선택 해제
+  onChange: (id: string | null) => void;
 };
 
 export default function OptionList({
