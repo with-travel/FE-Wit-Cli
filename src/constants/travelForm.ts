@@ -1,6 +1,6 @@
 const questions = [
   {
-    id: 'energyLevels', // Survey 타입에 맞춤
+    id: 'energyLevels',
     emoji: '⚡️',
     title: '에너지 레벨',
     options: [
@@ -11,7 +11,7 @@ const questions = [
     ],
   },
   {
-    id: 'travelGoals', // Survey 타입에 맞춤
+    id: 'travelGoals',
     emoji: '🎯',
     title: '여행 목적',
     options: [
@@ -23,7 +23,7 @@ const questions = [
     ],
   },
   {
-    id: 'travelPaces', // Survey 타입에 맞춤
+    id: 'travelPaces',
     emoji: '🚀',
     title: '여행 페이스',
     options: [
@@ -34,7 +34,7 @@ const questions = [
     ],
   },
   {
-    id: 'commStyles', // Survey 타입에 맞춤
+    id: 'commStyles',
     emoji: '💬',
     title: '소통 스타일',
     options: [
@@ -45,7 +45,7 @@ const questions = [
     ],
   },
   {
-    id: 'recordTendencies', // Survey 타입에 맞춤
+    id: 'recordTendencies',
     emoji: '📸',
     title: '기록 성향',
     options: [
@@ -56,7 +56,7 @@ const questions = [
     ],
   },
   {
-    id: 'companionStyles', // Survey 타입에 맞춤
+    id: 'companionStyles',
     emoji: '🤝',
     title: '동행 스타일',
     options: [
@@ -67,7 +67,7 @@ const questions = [
     ],
   },
   {
-    id: 'spendPatterns', // Survey 타입에 맞춤
+    id: 'spendPatterns',
     emoji: '💰',
     title: '소비 패턴',
     options: [
@@ -79,3 +79,84 @@ const questions = [
 ];
 
 export const TRAVEL_STYLE_QUESTIONS = questions;
+// const questions = [
+//   {
+//     id: 'energyLevels',
+//     emoji: '⚡️',
+//     title: '에너지 레벨',
+//     options: [
+//       { value: 'abc', label: '#아침형인간' },
+//       { value: 'abcd', label: '#밤올빼미' },
+//       { value: 'abcde', label: '#에너자이저' },
+//       { value: 'abcdef', label: '#힐링모드' },
+//     ],
+//   },
+//   {
+//     id: 'travelGoals',
+//     emoji: '🎯',
+//     title: '여행 목적',
+//     options: [
+//       { value: 'abcde', label: '#핫플탐방러' },
+//       { value: 'abcd', label: '#현지감성' },
+//       { value: 'abc', label: '#맛집러버' },
+//       { value: 'abcdef', label: '#액티비티광' },
+//       { value: 'abcdeg', label: '#힐링우선' },
+//     ],
+//   },
+//   {
+//     id: 'travelPaces',
+//     emoji: '🚀',
+//     title: '여행 페이스',
+//     options: [
+//       { value: 'abcdea', label: '#타이트스케줄' },
+//       { value: 'abcdeb', label: '#여유만만' },
+//       { value: 'abcdec', label: '#즉흥여행' },
+//       { value: 'abcded', label: '#플랜B준비완료' },
+//     ],
+//   },
+//   {
+//     id: 'commStyles',
+//     emoji: '💬',
+//     title: '소통 스타일',
+//     options: [
+//       { value: 'abcdea', label: '#수다쟁이' },
+//       { value: 'abcdeb', label: '#조용한 편' },
+//       { value: 'abcdec', label: '#리액션킹' },
+//       { value: 'abcded', label: '#개인시간존중' },
+//     ],
+//   },
+//   {
+//     id: 'recordTendencies',
+//     emoji: '📸',
+//     title: '기록 성향',
+//     options: [
+//       { value: 'abcdea', label: '#인생샷헌터' },
+//       { value: 'abcdebc', label: '#셀카는못참지' },
+//       { value: 'abcdeb', label: '#기록좋아' },
+//       { value: 'abcdecc', label: '#눈으로만감상' },
+//     ],
+//   },
+//   {
+//     id: 'companionStyles',
+//     emoji: '🤝',
+//     title: '동행 스타일',
+//     options: [
+//       { value: 'abcdea', label: '#리더쉽발휘' },
+//       { value: 'abcdeb', label: '#따라가는편' },
+//       { value: 'abcdec', label: '#의견제시' },
+//       { value: 'abcded', label: '#분위기메이커' },
+//     ],
+//   },
+//   {
+//     id: 'spendPatterns',
+//     emoji: '💰',
+//     title: '소비 패턴',
+//     options: [
+//       { value: 'abcdea', label: '#가성비추구' },
+//       { value: 'abcdeb', label: '#가치투자' },
+//       { value: 'abcdec', label: '#플렉스' },
+//     ],
+//   },
+// ];
+
+// export const TRAVEL_STYLE_QUESTIONS = questions;
